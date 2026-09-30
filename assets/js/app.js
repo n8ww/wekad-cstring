@@ -33,28 +33,52 @@
   // per: 'day'   -> price × quantity × number of days
   // per: 'piece' -> price × quantity (one-off)
   const EXTRAS = [
-    { id: 'barista', ar: 'باريستا (امرأة)', en: 'Barista (Female)', price: 300, per: 'day',   step: 1,  max: 10,   unitAr: 'باريستا' },
-    { id: 'print',   ar: 'طباعة أكواب',      en: 'Cup Print',        price: 5,   per: 'piece', step: 25, max: 3000, unitAr: 'كوب' },
+    { id: 'barista', ar: 'باريستا إضافية (امرأة)', en: 'Extra Barista (Female)', price: 300, per: 'day',   step: 1,  max: 10,   unitAr: 'باريستا' },
+    { id: 'print',   ar: 'طباعة أكواب',            en: 'Cup Print',              price: 5,   per: 'piece', step: 25, max: 3000, unitAr: 'كوب' },
   ];
 
-  // ⚠ Placeholder prices per piece — replace with the real menu prices.
-  const DESSERTS = [
-    { id: 'd01', ar: 'معمول التمر',    en: 'Date Maamoul',     price: 6  },
-    { id: 'd02', ar: 'معمول الفستق',   en: 'Pistachio Maamoul', price: 8  },
-    { id: 'd03', ar: 'سان سباستيان',   en: 'San Sebastian',    price: 15 },
-    { id: 'd04', ar: 'تشيز كيك',       en: 'Cheesecake',       price: 14 },
-    { id: 'd05', ar: 'براونيز',        en: 'Brownies',         price: 10 },
-    { id: 'd06', ar: 'كوكيز',          en: 'Cookies',          price: 7  },
-    { id: 'd07', ar: 'كنافة',          en: 'Kunafa',           price: 12 },
-    { id: 'd08', ar: 'بسبوسة',         en: 'Basbousa',         price: 8  },
-    { id: 'd09', ar: 'لقيمات',         en: 'Luqaimat',         price: 6  },
-    { id: 'd10', ar: 'عش البلبل',      en: 'Osh El Bulbul',    price: 9  },
-    { id: 'd11', ar: 'ماكرون',         en: 'Macarons',         price: 9  },
-    { id: 'd12', ar: 'ميني دونات',     en: 'Mini Donuts',      price: 7  },
-    { id: 'd13', ar: 'تارت الفواكه',   en: 'Fruit Tart',       price: 13 },
-  ];
+  // Baristas that come with the order at no charge. A second one is included
+  // once the package is large *and* the dessert order is substantial.
+  const BARISTA_RULE = {
+    base: 1,                 // باريستا واحدة مجاناً مع كل طلب
+    bonusFromCups: 200,      // الباقة تُعتبر كبيرة من هذا العدد فأكثر
+    bonusFromDesserts: 1000, // قيمة الحلى (ر.س) التي تُعتبر "كثيرة"
+  };
 
-  const DESSERT_STEP = 10;   // desserts are ordered in batches of ten
+  // The dessert menu, grouped by the unit each group is sold in.
+  const DESSERT_GROUPS = [
+    {
+      id: 'tart',
+      ar: 'التارت',
+      en: 'Tarts',
+      note: 'الطبق ٥٠ حبة',
+      unitAr: 'طبق',
+      max: 40,
+      items: [
+        { id: 't-custard',   ar: 'تارت كاسترد',  en: 'Custard Tart',   price: 305 },
+        { id: 't-pecan',     ar: 'تارت بيكان',   en: 'Pecan Tart',     price: 305 },
+        { id: 't-chocolate', ar: 'تارت تشوكلت',  en: 'Chocolate Tart', price: 305 },
+      ],
+    },
+    {
+      id: 'cake',
+      ar: 'الكيك الطبيعي الكبير',
+      en: 'Large Fresh Cakes',
+      note: 'السعر للكيكة الواحدة',
+      unitAr: 'كيكة',
+      max: 100,
+      items: [
+        { id: 'c-pecan',      ar: 'بيكان',           en: 'Pecan',            price: 35.1 },
+        { id: 'c-graham',     ar: 'قراهم',           en: 'Graham',           price: 37.7 },
+        { id: 'c-carrot',     ar: 'جزر',             en: 'Carrot',           price: 37.7 },
+        { id: 'c-cheesecake', ar: 'وِكاد تشيزكيك',   en: 'Wekad Cheesecake', price: 37.7 },
+        { id: 'c-chocolate',  ar: 'وِكاد تشوكلت',    en: 'Wekad Chocolate',  price: 37.7 },
+        { id: 'c-london',     ar: 'لندن',            en: 'London',           price: 41.6 },
+        { id: 'c-classic',    ar: 'كلاسيك تشوكلت',   en: 'Classic Chocolate', price: 35.1 },
+        { id: 'c-matilda',    ar: 'ماتلدا',          en: 'Matilda',          price: 41.6 },
+      ],
+    },
+  ];
 
   // Eastern Province only.
   const CITIES = [
@@ -73,7 +97,12 @@
     flask:   { ar: 'خدمة الحافظات',     en: 'Flask Service' },
   };
 
-  const ITEMS = [...EXTRAS, ...DESSERTS.map((d) => ({ ...d, per: 'piece', step: DESSERT_STEP, max: 2000, unitAr: 'قطعة', dessert: true }))];
+  const DESSERTS = DESSERT_GROUPS.flatMap((g) =>
+    g.items.map((d) => ({
+      ...d, per: 'piece', step: 1, max: g.max, unitAr: g.unitAr, dessert: true, group: g.id,
+    })));
+
+  const ITEMS = [...EXTRAS, ...DESSERTS];
 
   const state = {
     step: 0,
@@ -101,7 +130,9 @@
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
   const sarIcon = () => $('#sar-symbol').innerHTML;
-  const fmt = (n) => n.toLocaleString('en-US');
+  const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+  // Cake prices have decimals, package prices do not — show only what is there.
+  const fmt = (n) => round2(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
   const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -117,18 +148,30 @@
       .map((item) => {
         const qty = state.qty[item.id] || 0;
         if (!qty) return null;
-        const total = item.per === 'day' ? item.price * qty * state.days : item.price * qty;
+        const total = round2(item.per === 'day' ? item.price * qty * state.days : item.price * qty);
         return { ...item, qty, total };
       })
       .filter(Boolean);
+  }
+
+  function dessertsTotal() {
+    return round2(lineItems().filter((l) => l.dessert).reduce((sum, l) => sum + l.total, 0));
+  }
+
+  function includedBaristas() {
+    const base = chosenBase();
+    const cups = state.service === 'counter' && base ? base.cups : 0;
+    const bigPackage = cups >= BARISTA_RULE.bonusFromCups;
+    const manyDesserts = dessertsTotal() >= BARISTA_RULE.bonusFromDesserts;
+    return bigPackage && manyDesserts ? BARISTA_RULE.base + 1 : BARISTA_RULE.base;
   }
 
   function totals() {
     const base = chosenBase();
     const baseTotal = base ? base.price * state.days : 0;
     const lines = lineItems();
-    const linesTotal = lines.reduce((sum, l) => sum + l.total, 0);
-    return { base, baseTotal, lines, linesTotal, grand: baseTotal + linesTotal };
+    const linesTotal = round2(lines.reduce((sum, l) => sum + l.total, 0));
+    return { base, baseTotal, lines, linesTotal, grand: round2(baseTotal + linesTotal) };
   }
 
   function mapsLink() {
@@ -159,7 +202,7 @@
     $$('.qrow').forEach((row) => {
       const item = ITEMS.find((i) => i.id === row.dataset.id);
       const qty = state.qty[item.id] || 0;
-      const total = item.per === 'day' ? item.price * qty * state.days : item.price * qty;
+      const total = round2(item.per === 'day' ? item.price * qty * state.days : item.price * qty);
       row.classList.toggle('on', qty > 0);
       $('.qrow-total', row).innerHTML = qty
         ? `<span class="num">${fmt(total)}</span>${sarIcon()}`
@@ -199,12 +242,21 @@
         <div class="row-price"><span class="num">${fmt(e.price)}</span>${sarIcon()}</div>
       </div>`).join('');
 
-    // dessert menu on the landing page
-    $('#dessert-grid').innerHTML = DESSERTS.map((d, i) => `
-      <article class="sweet reveal" style="--d:${i * 40}ms">
-        <span class="sweet-name">${d.ar}<span class="en">${d.en}</span></span>
-        <span class="sweet-price"><span class="num">${fmt(d.price)}</span>${sarIcon()}</span>
-      </article>`).join('');
+    // dessert menu on the landing page, one block per group
+    $('#dessert-grid').innerHTML = DESSERT_GROUPS.map((g) => `
+      <section class="sweet-group reveal">
+        <header class="sweet-group-head">
+          <h3>${g.ar}<span class="en">${g.en}</span></h3>
+          <span class="sweet-group-note">${g.note}</span>
+        </header>
+        <div class="sweets">
+          ${g.items.map((d) => `
+            <article class="sweet">
+              <span class="sweet-name">${d.ar}<span class="en">${d.en}</span></span>
+              <span class="sweet-price"><span class="num">${fmt(d.price)}</span>${sarIcon()}</span>
+            </article>`).join('')}
+        </div>
+      </section>`).join('');
 
     // wizard options
     $('#opt-packages').innerHTML = PACKAGES.map((p) => `
@@ -227,7 +279,13 @@
       </label>`).join('');
 
     $('#qty-extras').innerHTML = EXTRAS.map(qtyRow).join('');
-    $('#qty-desserts').innerHTML = ITEMS.filter((i) => i.dessert).map(qtyRow).join('');
+    renderIncluded();
+    $('#qty-desserts').innerHTML = DESSERT_GROUPS.map((g) => `
+      <h4 class="sub-head sub-head--inner">${g.ar}<span class="en">${g.en}</span>
+        <span class="sub-note">${g.note}</span></h4>
+      <div class="qlist">
+        ${DESSERTS.filter((d) => d.group === g.id).map(qtyRow).join('')}
+      </div>`).join('');
 
     $('#f-city').innerHTML = CITIES.map((c) =>
       `<option ${c === state.city ? 'selected' : ''}>${c}</option>`).join('');
@@ -252,6 +310,7 @@
     const link = mapsLink();
     const rows = [
       ['الخدمة', SERVICES[state.service].ar],
+      ['باريستا مشمولة مجاناً', `${includedBaristas()}`],
       [state.service === 'counter' ? 'الباقة' : 'الحافظات', sizeText],
       ['عدد الأيام', String(state.days)],
       ['التاريخ', state.date || '—'],
@@ -276,9 +335,24 @@
          <dd><span class="num">${fmt(t.grand)}</span>${sarIcon()}</dd></div>`;
   }
 
+  function renderIncluded() {
+    const n = includedBaristas();
+    const box = $('#included-note');
+    if (!box) return;
+    box.innerHTML = `
+      <span class="inc-badge">مشمول مجاناً</span>
+      <span class="inc-text">
+        <strong class="num">${n}</strong> ${n === 1 ? 'باريستا' : 'باريستا'} مع طلبك بدون أي رسوم.
+        ${n === 1
+          ? `<em>تصير ٢ تلقائياً مع باقة ${BARISTA_RULE.bonusFromCups} كوب فأكثر وطلب حلى من ${fmt(BARISTA_RULE.bonusFromDesserts)} ر.س.</em>`
+          : '<em>ترقّت إلى باريستين لأن الباقة كبيرة وطلب الحلى كبير.</em>'}
+      </span>`;
+  }
+
   function renderTotal() {
     $('#total-value').innerHTML = `<span class="num">${fmt(totals().grand)}</span>${sarIcon()}`;
     refreshQtyTotals();
+    renderIncluded();
   }
 
   // ---------- steps ----------
@@ -471,6 +545,7 @@
     out.push(HR);
     out.push('*٤ · الإضافات*');
     out.push(HR);
+    out.push(`▪︎ باريستا مشمولة مجاناً: ${includedBaristas()}`);
     if (addons.length) {
       addons.forEach((l) => {
         out.push(`▪︎ ${l.ar}`);
@@ -481,7 +556,7 @@
       });
       out.push(`▪︎ *مجموع الإضافات: ${fmt(addonsTotal)} ر.س*`);
     } else {
-      out.push('▪︎ لا توجد إضافات');
+      out.push('▪︎ لا توجد إضافات مدفوعة');
     }
     out.push('');
 
@@ -490,8 +565,13 @@
     out.push('*٥ · الحلى*');
     out.push(HR);
     if (sweets.length) {
-      sweets.forEach((l) => {
-        out.push(`▪︎ ${l.ar} — ${fmt(l.qty)} قطعة × ${fmt(l.price)} = ${fmt(l.total)} ر.س`);
+      DESSERT_GROUPS.forEach((g) => {
+        const picked = sweets.filter((l) => l.group === g.id);
+        if (!picked.length) return;
+        out.push(`*${g.ar}* (${g.note})`);
+        picked.forEach((l) => {
+          out.push(`▪︎ ${l.ar} — ${fmt(l.qty)} ${l.unitAr} × ${fmt(l.price)} = ${fmt(l.total)} ر.س`);
+        });
       });
       out.push(`▪︎ *مجموع الحلى: ${fmt(sweetsTotal)} ر.س*`);
     } else {
