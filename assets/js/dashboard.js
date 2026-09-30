@@ -28,6 +28,8 @@
   const WEEKDAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
   let session = null;
+  let role = null;          // admin | staff
+  let schedule = [];       // ما يراه الموظف
   let allOrders = [];   // كل ما حُمّل
   let allVisits = [];
   let scopedVisits = [];
@@ -89,6 +91,20 @@
     return response.json();
   }
 
+  async function fetchRole() {
+    const response = await api('/rest/v1/rpc/my_role', { method: 'POST', body: '{}' });
+    if (!response.ok) return null;
+    const value = await response.json().catch(() => null);
+    return typeof value === 'string' ? value : null;
+  }
+
+  /** عرض الموظف: الجدول فقط — لا يحتوي أي عمود سعر من الأساس. */
+  async function fetchSchedule() {
+    const response = await api('/rest/v1/schedule?select=*&order=event_date.asc&limit=2000');
+    if (!response.ok) return [];
+    return response.json();
+  }
+
   async function fetchVisits() {
     const response = await api('/rest/v1/visits?select=*&order=created_at.desc&limit=20000');
     if (!response.ok) return [];          // الجدول قد لا يكون مُنشأً بعد
@@ -102,6 +118,54 @@
       body: JSON.stringify({ status }),
     });
     return response.ok;
+  }
+
+  // ==========================================================================
+  //  إدارة المستخدمين (للأدمن)
+  // ==========================================================================
+  async function fetchStaff() {
+    const [allowed, profiles] = await Promise.all([
+      api('/rest/v1/allowed_staff?select=*&order=created_at.asc').then((r) => (r.ok ? r.json() : [])),
+      api('/rest/v1/profiles?select=email,role').then((r) => (r.ok ? r.json() : [])),
+    ]);
+    const joined = new Map(profiles.map((p) => [String(p.email || '').toLowerCase(), p.role]));
+    return allowed.map((a) => ({
+      ...a,
+      registered: joined.has(String(a.email).toLowerCase()),
+    }));
+  }
+
+  async function renderStaff() {
+    const rows = await fetchStaff();
+    const el = $('#staff-list');
+    if (!el) return;
+    el.innerHTML = !rows.length
+      ? '<p class="empty">لا يوجد مستخدمون بعد</p>'
+      : rows.map((r) => `
+        <div class="staff-row">
+          <span class="staff-mail" dir="ltr">${esc(r.email)}</span>
+          <span class="pill ${r.role === 'admin' ? 'pill-admin' : 'pill-staff'}">
+            ${r.role === 'admin' ? 'مدير' : 'موظف'}</span>
+          <span class="staff-state ${r.registered ? 'ok' : ''}">
+            ${r.registered ? 'سجّل دخوله' : 'لم يسجّل بعد'}</span>
+          <button class="btn btn-ghost btn-sm" data-remove="${esc(r.email)}">حذف</button>
+        </div>`).join('');
+  }
+
+  async function addStaff(email, staffRole) {
+    const response = await api('/rest/v1/allowed_staff', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ email: email.trim().toLowerCase(), role: staffRole }),
+    });
+    return response.ok;
+  }
+
+  async function removeStaff(email) {
+    const a = await api(`/rest/v1/allowed_staff?email=eq.${encodeURIComponent(email)}`, { method: 'DELETE' });
+    // يُحذف ملفه أيضاً فيفقد الوصول فوراً
+    await api(`/rest/v1/profiles?email=eq.${encodeURIComponent(email)}`, { method: 'DELETE' });
+    return a.ok;
   }
 
   // ==========================================================================
@@ -494,6 +558,12 @@
             </select>
             <button class="detail-toggle" data-toggle="${r.id}">تفاصيل</button>
           </div>
+          <div class="row-actions">
+            ${r.status !== 'cancelled'
+              ? `<button class="btn btn-danger btn-sm" data-cancel="${r.id}" data-ref="${esc(r.ref)}">إلغاء الطلب</button>`
+              : ''}
+            <button class="btn btn-ghost btn-sm" data-delete="${r.id}" data-ref="${esc(r.ref)}">حذف نهائي</button>
+          </div>
         </td>
       </tr>
       <tr class="row-detail" data-detail="${r.id}" hidden>
@@ -573,10 +643,64 @@
     renderTable();
   }
 
+  /** جدول الموظف: المناسبات القادمة فقط، بما يلزم للتنفيذ. */
+  function renderSchedule() {
+    const today = startOfDay(new Date());
+    const rows = schedule
+      .filter((r) => r.event_date && startOfDay(r.event_date) >= today)
+      .sort((a, b) => String(a.event_date).localeCompare(String(b.event_date)));
+
+    const q = ($('#sch-q')?.value || '').trim().toLowerCase();
+    const shown = q
+      ? rows.filter((r) => [r.ref, r.city, r.district, r.venue, r.customer_name]
+          .some((v) => String(v ?? '').toLowerCase().includes(q)))
+      : rows;
+
+    const next7 = rows.filter((r) => {
+      const d = startOfDay(r.event_date);
+      const limit = new Date(today); limit.setDate(limit.getDate() + 7);
+      return d <= limit;
+    }).length;
+
+    $('#sch-kpis').innerHTML = [
+      kpi('مناسبات قادمة', n0(rows.length), '', 'من اليوم فما بعد'),
+      kpi('خلال ٧ أيام', n0(next7), '', 'استعد لها'),
+      kpi('أقرب مناسبة', rows[0] ? dateOnly(rows[0].event_date) : '—', '',
+        rows[0] ? `${esc(rows[0].city)} · ${esc(rows[0].event_time || '')}` : ''),
+    ].join('');
+
+    $('#sch-count').textContent = `${shown.length} مناسبة`;
+
+    $('#sch-body').innerHTML = !shown.length
+      ? '<tr><td colspan="6"><p class="empty">لا توجد مناسبات قادمة</p></td></tr>'
+      : shown.map((r) => {
+          const maps = r.lat && r.lng ? `https://maps.google.com/?q=${r.lat},${r.lng}` : '';
+          const days = Math.round((startOfDay(r.event_date) - today) / 86400000);
+          const items = Array.isArray(r.items) ? r.items : [];
+          return `
+          <tr class="row-main">
+            <td class="tab"><b>${dateOnly(r.event_date)}</b>
+                <div class="muted">${days === 0 ? 'اليوم' : days === 1 ? 'غداً' : `بعد ${days} يوم`}</div></td>
+            <td class="tab"><b>${esc(r.event_time || '—')}</b>
+                <div class="muted">${esc(r.days)} يوم</div></td>
+            <td>${esc(r.city || '—')}
+                <div class="muted">${esc(r.district || '')}${maps ? ` · <a href="${maps}" target="_blank" rel="noopener">خريطة</a>` : ''}</div></td>
+            <td>${esc(r.venue || '—')}</td>
+            <td>${esc(r.package_name || '—')}
+                <div class="muted">${esc(r.included_baristas)} باريستا${items.length ? ` · ${items.length} صنف إضافي` : ''}</div></td>
+            <td>${esc(r.customer_name || '—')}
+                <div class="muted"><a href="tel:${esc(r.phone)}" dir="ltr">${esc(r.phone || '')}</a></div>
+                ${r.notes ? `<div class="muted note-line">${esc(r.notes)}</div>` : ''}</td>
+          </tr>`;
+        }).join('');
+  }
+
   // ---------- الشاشات ----------
   function showLogin(message) {
     $('#login').hidden = false;
     $('#dash').hidden = true;
+    const staffView = $('#staff-view');
+    if (staffView) staffView.hidden = true;
     $('#login-err').textContent = message || '';
     $('#login-err').hidden = !message;
   }
@@ -586,39 +710,62 @@
 
   function stampSync() {
     lastSync = new Date();
-    const el = $('#sync');
-    if (el) {
-      el.textContent = `آخر تحديث ${new Intl.DateTimeFormat('ar-SA-u-ca-gregory-nu-latn',
-        { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(lastSync)}`;
-    }
+    const text = `آخر تحديث ${new Intl.DateTimeFormat('ar-SA-u-ca-gregory-nu-latn',
+      { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(lastSync)}`;
+    ['#sync', '#sync-staff'].forEach((sel) => { const el = $(sel); if (el) el.textContent = text; });
   }
 
   /** يُبقي اللوحة حيّة: تحديث دوري، وفوري عند العودة إلى التبويب. */
   function startAutoRefresh() {
     clearInterval(autoTimer);
     autoTimer = setInterval(() => {
-      if (!document.hidden && !$('#dash').hidden) showDashboard({ quiet: true });
+      const open = !$('#dash').hidden || !$('#staff-view').hidden;
+      if (!document.hidden && open) showDashboard({ quiet: true });
     }, 30000);
   }
 
   async function showDashboard(opts = {}) {
     $('#login').hidden = true;
-    $('#dash').hidden = false;
-    $('#who').textContent = session?.user?.email ?? '';
-    if (!opts.quiet) $('#refresh').textContent = 'جارٍ التحديث…';
+    if (!opts.quiet) $$('.refresh').forEach((b) => { b.textContent = 'جارٍ التحديث…'; });
+
     try {
+      if (!role) role = await fetchRole();
+
+      if (!role) {
+        $('#dash').hidden = true;
+        $('#staff-view').hidden = true;
+        showLogin('حسابك غير مُصرَّح له. تواصل مع المدير لإضافة بريدك.');
+        clearSession();
+        return;
+      }
+
+      const admin = role === 'admin';
+      $('#dash').hidden = !admin;
+      $('#staff-view').hidden = admin;
+      $$('.who-email').forEach((el) => { el.textContent = session?.user?.email ?? ''; });
+      $$('.role-badge').forEach((el) => { el.textContent = admin ? 'مدير' : 'موظف'; });
+
+      if (!admin) {
+        schedule = await fetchSchedule();
+        renderSchedule();
+        stampSync();
+        startAutoRefresh();
+        return;
+      }
+
       const [rows, visits] = await Promise.all([fetchOrders(), fetchVisits()]);
       if (rows === null) return;
       allOrders = rows;
       allVisits = visits || [];
       applyRange();
+      renderStaff();
       stampSync();
       startAutoRefresh();
     } catch (error) {
       console.error(error);
       $('#table-body').innerHTML = '<tr><td colspan="8"><p class="empty">تعذّر تحميل الطلبات</p></td></tr>';
     } finally {
-      $('#refresh').textContent = 'تحديث';
+      $$('.refresh').forEach((b) => { b.textContent = 'تحديث'; });
     }
   }
 
@@ -642,8 +789,8 @@
       }
     });
 
-    $('#logout').addEventListener('click', () => { clearSession(); showLogin(); });
-    $('#refresh').addEventListener('click', showDashboard);
+    $$('.logout').forEach((b) => b.addEventListener('click', () => { clearSession(); role = null; showLogin(); }));
+    $$('.refresh').forEach((b) => b.addEventListener('click', () => showDashboard()));
     $('#export').addEventListener('click', exportCsv);
     $('#q').addEventListener('input', renderTable);
     $('#filter-status').addEventListener('change', renderTable);
@@ -674,6 +821,52 @@
       renderTable();
     });
 
+    // إضافة موظف
+    $('#staff-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = $('#staff-email').value.trim();
+      if (!email) return;
+      if (!(await addStaff(email, $('#staff-role').value))) { alert('تعذّرت الإضافة'); return; }
+      $('#staff-email').value = '';
+      renderStaff();
+    });
+
+    $('#staff-list').addEventListener('click', async (e) => {
+      const email = e.target.dataset?.remove;
+      if (!email) return;
+      if (!confirm(`إزالة صلاحية ${email}؟ لن يقدر يدخل اللوحة بعدها.`)) return;
+      await removeStaff(email);
+      renderStaff();
+    });
+
+    // إلغاء أو حذف طلب
+    $('#table-body').addEventListener('click', async (e) => {
+      const cancelId = e.target.dataset?.cancel;
+      const deleteId = e.target.dataset?.delete;
+      const ref = e.target.dataset?.ref;
+
+      if (cancelId) {
+        if (!confirm(`إلغاء الطلب ${ref}؟`)) return;
+        if (!(await updateStatus(cancelId, 'cancelled'))) { alert('تعذّر الإلغاء'); return; }
+        [allOrders, scoped].forEach((list) => {
+          const row = list.find((r) => String(r.id) === String(cancelId));
+          if (row) row.status = 'cancelled';
+        });
+        renderKpis(); renderPanels(); renderTable();
+        return;
+      }
+
+      if (deleteId) {
+        if (!confirm(`حذف الطلب ${ref} نهائياً؟ لا يمكن التراجع.`)) return;
+        const response = await api(`/rest/v1/orders?id=eq.${deleteId}`, { method: 'DELETE' });
+        if (!response.ok) { alert('تعذّر الحذف'); return; }
+        allOrders = allOrders.filter((r) => String(r.id) !== String(deleteId));
+        applyRange();
+      }
+    });
+
+    $('#sch-q').addEventListener('input', renderSchedule);
+
     $('#table-body').addEventListener('click', (e) => {
       const id = e.target.dataset?.toggle;
       if (!id) return;
@@ -683,9 +876,8 @@
     });
 
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && !$('#dash').hidden && session?.access_token) {
-        showDashboard({ quiet: true });
-      }
+      const open = !$('#dash').hidden || !$('#staff-view').hidden;
+      if (!document.hidden && open && session?.access_token) showDashboard({ quiet: true });
     });
 
     loadSession();
