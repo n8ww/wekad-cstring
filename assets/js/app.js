@@ -111,6 +111,8 @@
     flaskId: 'f1',
     qty: Object.fromEntries(ITEMS.map((i) => [i.id, 0])),
     days: 1,
+    setupDate: '',
+    setupTime: '16:00',
     date: '',
     time: '19:00',
     city: CITIES[0],
@@ -293,7 +295,10 @@
     $('#f-city').innerHTML = CITIES.map((c) =>
       `<option ${c === state.city ? 'selected' : ''}>${c}</option>`).join('');
 
-    $('#f-date').min = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    // لا تُقبل التواريخ الماضية؛ أقرب موعد هو الغد
+    const earliest = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    $('#f-date').min = earliest;
+    $('#f-setup-date').min = earliest;
   }
 
   function syncSizePane() {
@@ -316,8 +321,10 @@
       ['باريستا مشمولة مجاناً', `${includedBaristas()}`],
       [state.service === 'counter' ? 'الباقة' : 'الحافظات', sizeText],
       ['عدد الأيام', String(state.days)],
-      ['التاريخ', state.date || '—'],
-      ['الوقت', state.time || '—'],
+      ['تاريخ التركيب', state.setupDate || '—'],
+      ['وقت التركيب', state.setupTime || '—'],
+      ['تاريخ بدء العمل', state.date || '—'],
+      ['وقت بدء العمل', state.time || '—'],
       ['المدينة', state.city],
       ['الحي', state.district || '—'],
       ['وصف الموقع', state.venue || '—'],
@@ -406,8 +413,16 @@
 
   function validate() {
     if (PANES[state.step] === 'when') {
-      if (!state.date) return 'اختر تاريخ المناسبة.';
-      if (!state.time) return 'اختر وقت الحضور.';
+      const today = new Date().toISOString().slice(0, 10);
+      if (!state.setupDate) return 'اختر تاريخ التركيب.';
+      if (!state.setupTime) return 'اختر وقت التركيب.';
+      if (state.setupDate <= today) return 'تاريخ التركيب لازم يكون بعد اليوم.';
+      if (!state.date) return 'اختر تاريخ بدء العمل.';
+      if (!state.time) return 'اختر وقت بدء العمل.';
+      if (state.date < state.setupDate) return 'تاريخ بدء العمل لا يسبق تاريخ التركيب.';
+      if (state.date === state.setupDate && state.time < state.setupTime) {
+        return 'وقت بدء العمل لازم يكون بعد وقت التركيب.';
+      }
       if (!state.district.trim()) return 'اكتب اسم الحي.';
       if (state.lat == null) return 'حدّد موقع المناسبة على الخريطة.';
       if (state.days < 1) return 'عدد الأيام يجب أن يكون يوماً واحداً على الأقل.';
@@ -543,9 +558,15 @@
     out.push(HR);
     out.push('*٢ · الموعد*');
     out.push(HR);
+    out.push('*التركيب*');
+    out.push(`▪︎ اليوم: ${arabicDay(state.setupDate)}`);
+    out.push(`▪︎ التاريخ: ${prettyDate(state.setupDate)}  (${state.setupDate})`);
+    out.push(`▪︎ الوقت: ${time12(state.setupTime)}`);
+    out.push('');
+    out.push('*بدء العمل*');
     out.push(`▪︎ اليوم: ${arabicDay(state.date)}`);
     out.push(`▪︎ التاريخ: ${prettyDate(state.date)}  (${state.date})`);
-    out.push(`▪︎ وقت الحضور: ${time12(state.time)}`);
+    out.push(`▪︎ الوقت: ${time12(state.time)}`);
     out.push('');
 
     // ---- 3. where ----
@@ -651,6 +672,8 @@
       package_name: state.service === 'counter' ? `${t.base.cups} كوب` : t.base.ar,
       package_price: t.base.price,
       days: state.days,
+      setup_date: state.setupDate || null,
+      setup_time: state.setupTime,
       event_date: state.date || null,
       event_time: state.time,
       city: state.city,
@@ -792,6 +815,8 @@
     days.addEventListener('input', () => setDays(parseInt(days.value, 10)));
 
     const bind = (sel, key) => $(sel).addEventListener('input', (e) => { state[key] = e.target.value; });
+    bind('#f-setup-date', 'setupDate');
+    bind('#f-setup-time', 'setupTime');
     bind('#f-date', 'date');
     bind('#f-time', 'time');
     bind('#f-district', 'district');
@@ -802,6 +827,16 @@
     bind('#f-vat', 'vat');
     bind('#f-notes', 'notes');
     $('#f-city').addEventListener('change', (e) => { state.city = e.target.value; });
+
+    // اختيار يوم التركيب يقترح نفس اليوم لبدء العمل، ويمنع اختيار يوم أسبق منه
+    $('#f-setup-date').addEventListener('change', () => {
+      const serviceInput = $('#f-date');
+      serviceInput.min = state.setupDate || serviceInput.min;
+      if (!state.date || state.date < state.setupDate) {
+        serviceInput.value = state.setupDate;
+        state.date = state.setupDate;
+      }
+    });
 
     $('#btn-locate').addEventListener('click', locateMe);
 

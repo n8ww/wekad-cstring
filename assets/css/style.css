@@ -1049,3 +1049,5 @@ body::after {
   color: rgba(237, 230, 218, 0.45);
   margin-block-start: 0.15rem;
 }
+
+.f-note { display: block; font-size: 0.74rem; color: rgba(237, 230, 218, 0.4); margin-block-start: 0.35rem; }

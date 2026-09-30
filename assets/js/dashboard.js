@@ -650,7 +650,8 @@
             <div class="muted">${r.client_type === 'company' ? esc(r.company || 'شركة') : 'أفراد'}</div></td>
         <td><a href="tel:${esc(r.phone)}" dir="ltr">${esc(r.phone || '—')}</a></td>
         <td>${esc(r.package_name || '—')}<div class="muted">${esc(r.days)} يوم</div></td>
-        <td class="tab">${dateOnly(r.event_date)}<div class="muted">${esc(r.event_time || '')}</div></td>
+        <td class="tab"><b>${dateOnly(r.setup_date || r.event_date)}</b> · ${esc(r.setup_time || '—')}
+            <div class="muted">العمل ${dateOnly(r.event_date)} · ${esc(r.event_time || '')}</div></td>
         <td>${esc(r.city || '—')}<div class="muted">${esc(r.district || '')}${maps ? ` · <a href="${maps}" target="_blank" rel="noopener">خريطة</a>` : ''}</div></td>
         <td class="tab"><b>${n2(r.total)}</b></td>
         <td>
@@ -674,6 +675,8 @@
       <tr class="row-detail" data-detail="${r.id}" hidden>
         <td colspan="8">
           <dl class="detail-grid">
+            <div><dt>التركيب</dt><dd class="tab">${dateOnly(r.setup_date)} · ${esc(r.setup_time || '—')}</dd></div>
+            <div><dt>بدء العمل</dt><dd class="tab">${dateOnly(r.event_date)} · ${esc(r.event_time || '—')}</dd></div>
             <div><dt>الموقع</dt><dd>${esc(r.venue || '—')}</dd></div>
             <div><dt>الحي</dt><dd>${esc(r.district || '—')}</dd></div>
             <div><dt>باريستا مشمولة</dt><dd class="num">${esc(r.included_baristas)}</dd></div>
@@ -695,8 +698,8 @@
     const rows = visibleRows();
     const headers = [
       'رقم الطلب', 'تاريخ الطلب', 'الحالة', 'العميل', 'نوع العميل', 'الشركة',
-      'الرقم الضريبي', 'الجوال', 'الخدمة', 'الباقة', 'الأيام', 'تاريخ المناسبة',
-      'الوقت', 'المدينة', 'الحي', 'الموقع', 'رابط الخريطة', 'باريستا مشمولة',
+      'الرقم الضريبي', 'الجوال', 'الخدمة', 'الباقة', 'الأيام',
+      'تاريخ التركيب', 'وقت التركيب', 'تاريخ بدء العمل', 'وقت بدء العمل', 'المدينة', 'الحي', 'الموقع', 'رابط الخريطة', 'باريستا مشمولة',
       'الإضافات', 'الحلى', 'الإجمالي', 'الأصناف', 'ملاحظات',
     ];
 
@@ -713,7 +716,7 @@
       r.client_type === 'company' ? 'شركة' : 'أفراد',
       r.company, r.vat, r.phone,
       r.service === 'counter' ? 'ركن ضيافة القهوة' : 'خدمة الحافظات',
-      r.package_name, r.days, r.event_date, r.event_time,
+      r.package_name, r.days, r.setup_date, r.setup_time, r.event_date, r.event_time,
       r.city, r.district, r.venue,
       r.lat && r.lng ? `https://maps.google.com/?q=${r.lat},${r.lng}` : '',
       r.included_baristas, r.addons_total, r.desserts_total, r.total,
@@ -751,9 +754,11 @@
   /** جدول الموظف: المناسبات القادمة فقط، بما يلزم للتنفيذ. */
   function renderSchedule() {
     const today = startOfDay(new Date());
+    const keyOf = (r) => r.setup_date || r.event_date;
     const rows = schedule
-      .filter((r) => r.event_date && startOfDay(r.event_date) >= today)
-      .sort((a, b) => String(a.event_date).localeCompare(String(b.event_date)));
+      .filter((r) => keyOf(r) && startOfDay(keyOf(r)) >= today)
+      .sort((a, b) => (String(keyOf(a)) + (a.setup_time || ''))
+        .localeCompare(String(keyOf(b)) + (b.setup_time || '')));
 
     const q = ($('#sch-q')?.value || '').trim().toLowerCase();
     const shown = q
@@ -762,37 +767,41 @@
       : rows;
 
     const next7 = rows.filter((r) => {
-      const d = startOfDay(r.event_date);
+      const d = startOfDay(keyOf(r));
       const limit = new Date(today); limit.setDate(limit.getDate() + 7);
       return d <= limit;
     }).length;
 
     $('#sch-kpis').innerHTML = [
-      kpi('مناسبات قادمة', n0(rows.length), '', 'من اليوم فما بعد'),
+      kpi('تركيبات قادمة', n0(rows.length), '', 'من اليوم فما بعد'),
       kpi('خلال ٧ أيام', n0(next7), '', 'استعد لها'),
-      kpi('أقرب مناسبة', rows[0] ? dateOnly(rows[0].event_date) : '—', '',
-        rows[0] ? `${esc(rows[0].city)} · ${esc(rows[0].event_time || '')}` : ''),
+      kpi('أقرب تركيب', rows[0] ? dateOnly(keyOf(rows[0])) : '—', '',
+        rows[0] ? `${esc(rows[0].city)} · الوصول ${esc(rows[0].setup_time || '')}` : ''),
     ].join('');
 
     $('#sch-count').textContent = `${shown.length} مناسبة`;
 
     $('#sch-body').innerHTML = !shown.length
-      ? '<tr><td colspan="6"><p class="empty">لا توجد مناسبات قادمة</p></td></tr>'
+      ? '<tr><td colspan="7"><p class="empty">لا توجد مناسبات قادمة</p></td></tr>'
       : shown.map((r) => {
           const maps = r.lat && r.lng ? `https://maps.google.com/?q=${r.lat},${r.lng}` : '';
-          const days = Math.round((startOfDay(r.event_date) - today) / 86400000);
+          const setup = r.setup_date || r.event_date;
+          const days = Math.round((startOfDay(setup) - today) / 86400000);
           const items = Array.isArray(r.items) ? r.items : [];
+          const when = days === 0 ? 'اليوم' : days === 1 ? 'غداً' : days > 0 ? `بعد ${days} يوم` : '';
           return `
-          <tr class="row-main">
-            <td class="tab"><b>${dateOnly(r.event_date)}</b>
-                <div class="muted">${days === 0 ? 'اليوم' : days === 1 ? 'غداً' : `بعد ${days} يوم`}</div></td>
-            <td class="tab"><b>${esc(r.event_time || '—')}</b>
-                <div class="muted">${esc(r.days)} يوم</div></td>
+          <tr class="row-main${days <= 1 ? ' row-soon' : ''}">
+            <td class="tab"><b>${dateOnly(setup)}</b>
+                <div class="muted">${when}</div></td>
+            <td class="tab"><b class="big-time">${esc(r.setup_time || '—')}</b>
+                <div class="muted">وقت الوصول</div></td>
+            <td class="tab">${dateOnly(r.event_date)} · <b>${esc(r.event_time || '—')}</b>
+                <div class="muted">${esc(r.days)} يوم خدمة</div></td>
             <td>${esc(r.city || '—')}
                 <div class="muted">${esc(r.district || '')}${maps ? ` · <a href="${maps}" target="_blank" rel="noopener">خريطة</a>` : ''}</div></td>
             <td>${esc(r.venue || '—')}</td>
             <td>${esc(r.package_name || '—')}
-                <div class="muted">${esc(r.included_baristas)} باريستا${items.length ? ` · ${items.length} صنف إضافي` : ''}</div></td>
+                <div class="muted">${esc(r.included_baristas)} باريستا${items.length ? ` · ${items.length} صنف` : ''}</div></td>
             <td>${esc(r.customer_name || '—')}
                 <div class="muted"><a href="tel:${esc(r.phone)}" dir="ltr">${esc(r.phone || '')}</a></div>
                 ${r.notes ? `<div class="muted note-line">${esc(r.notes)}</div>` : ''}</td>

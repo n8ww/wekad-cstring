@@ -528,3 +528,8 @@ tr.row-detail td { background: var(--surface-2); }
   .side-toggle { display: inline-flex; }
   .main { padding-inline: 1rem; }
 }
+
+/* إبراز التركيبات القريبة في جدول الموظف */
+tr.row-soon td { background: var(--brand-wash); }
+tr.row-soon td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
+.big-time { font-size: 1.05rem; color: var(--brand); }
