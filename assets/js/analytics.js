@@ -59,6 +59,9 @@
         }
       });
     }
+    // نسخة في قاعدة بياناتنا، لتظهر الأرقام في لوحة الطلبات لحظياً
+    try { window.wekadLogVisit?.(name, params); } catch { /* لا يعطّل شيئاً */ }
+
     if (debug) console.info('[track]', name, params);
   };
 })();

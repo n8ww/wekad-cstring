@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>لوحة الطلبات — وِكاد</title>
+<title>لوحة وِكاد</title>
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#141b12">
+<meta name="theme-color" content="#ffffff">
 <link rel="icon" href="assets/img/motif.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,11 +22,9 @@
 <path transform="matrix(1,0,0,-1,1108.6843,667.3061)" d="M0 0 2.708-11.768 116.326 14.364 113.618 26.133Z" fill="currentColor"/>
 <path transform="matrix(1,0,0,-1,727.3729,583.1054)" d="M0 0C-20.416 0-31.828 9.119-32.364 26.162-32.584 34.809-30.915 44.086-28.016 50.433L-25.942 50.139C-26.685 47.646-27.032 45.392-27.032 43.359-27.032 30.44-12.905 26.492 4.144 27.131 15.387 27.359 34.267 29.647 34.267 37.466 34.267 49.908 8.415 67.23-4.234 75.71L4.962 98.123 7.876 98.212C32.946 74.971 39.344 54.561 39.344 37.206 39.344 12.34 26.431-.004 0-.004Z" fill="currentColor"/>
 </svg></div>
-    <h1>لوحة الطلبات</h1>
-    <p class="sub">سجّل دخولك لعرض الطلبات</p>
-
+    <h1>لوحة التحكم</h1>
+    <p class="sub">سجّل دخولك لعرض الطلبات والتحليلات</p>
     <div class="alert alert-err" id="login-err" hidden></div>
-
     <label class="f">
       <span>البريد الإلكتروني</span>
       <input type="email" id="email" dir="ltr" required autocomplete="username">
@@ -35,8 +33,7 @@
       <span>كلمة المرور</span>
       <input type="password" id="password" required autocomplete="current-password">
     </label>
-
-    <button type="submit" class="btn btn-solid" id="login-btn">دخول</button>
+    <button type="submit" class="btn btn-solid btn-block" id="login-btn">دخول</button>
   </form>
 </div>
 
@@ -51,33 +48,108 @@
 <path transform="matrix(1,0,0,-1,1108.6843,667.3061)" d="M0 0 2.708-11.768 116.326 14.364 113.618 26.133Z" fill="currentColor"/>
 <path transform="matrix(1,0,0,-1,727.3729,583.1054)" d="M0 0C-20.416 0-31.828 9.119-32.364 26.162-32.584 34.809-30.915 44.086-28.016 50.433L-25.942 50.139C-26.685 47.646-27.032 45.392-27.032 43.359-27.032 30.44-12.905 26.492 4.144 27.131 15.387 27.359 34.267 29.647 34.267 37.466 34.267 49.908 8.415 67.23-4.234 75.71L4.962 98.123 7.876 98.212C32.946 74.971 39.344 54.561 39.344 37.206 39.344 12.34 26.431-.004 0-.004Z" fill="currentColor"/>
 </svg></div>
-      <h1>لوحة الطلبات</h1>
-      <span class="who" id="who"></span>
+      <h1>لوحة التحكم</h1>
+      <div class="spacer"></div>
+      <div class="ranges" role="group" aria-label="المدى الزمني">
+        <button class="range-btn" data-days="7">٧ أيام</button>
+        <button class="range-btn" data-days="30">٣٠ يوم</button>
+        <button class="range-btn" data-days="90">٩٠ يوم</button>
+        <button class="range-btn on" data-days="0">الكل</button>
+      </div>
       <button class="btn btn-ghost btn-sm" id="refresh">تحديث</button>
+      <button class="btn btn-ghost btn-sm" id="export">تصدير إكسل</button>
       <button class="btn btn-ghost btn-sm" id="logout">خروج</button>
     </header>
 
-    <div class="stats" id="stats"></div>
+    <div class="who" id="who" style="margin-block-end:1rem"></div>
 
+    <!-- الأرقام المالية -->
+    <section class="kpi-band">
+      <h2>الأداء المالي</h2>
+      <div class="kpis" id="kpis-money"></div>
+    </section>
+
+    <!-- أرقام الزوار -->
+    <section class="kpi-band">
+      <h2>الزوار وقمع الحجز</h2>
+      <div class="kpis" id="kpis-traffic"></div>
+    </section>
+
+    <!-- أرقام التشغيل -->
+    <section class="kpi-band">
+      <h2>أرقام التشغيل</h2>
+      <div class="kpis" id="kpis-ops"></div>
+    </section>
+
+    <!-- الرسوم -->
     <div class="panels">
-      <section class="panel">
-        <h2>الطلبات آخر ١٤ يوم</h2>
-        <div class="spark" id="spark"></div>
+      <section class="panel panel--wide">
+        <div class="panel-head">
+          <h2>الطلبات والزوار يومياً</h2>
+          <span class="note" id="daily-note"></span>
+        </div>
+        <div class="cols" id="chart-daily"></div>
+        <div class="axis-note"><span>الأقدم</span><span>اليوم</span></div>
       </section>
+
       <section class="panel">
-        <h2>الباقات الأكثر طلباً</h2>
+        <div class="panel-head"><h2>قمع الحجز</h2><span class="note">من زائر إلى طلب</span></div>
+        <div class="bars" id="funnel"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>مصادر الزوار</h2></div>
+        <div class="bars" id="sources"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>الإيرادات شهرياً</h2><span class="note">المؤكّدة فقط</span></div>
+        <div class="cols" id="chart-monthly"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>حالات الطلبات</h2></div>
+        <div class="bars" id="status-bars"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>الباقات الأكثر طلباً</h2></div>
         <div class="bars" id="top-packages"></div>
       </section>
+
       <section class="panel">
-        <h2>الحلى الأكثر طلباً</h2>
+        <div class="panel-head"><h2>الحلى الأكثر طلباً</h2></div>
         <div class="bars" id="top-desserts"></div>
       </section>
+
       <section class="panel">
-        <h2>المدن</h2>
+        <div class="panel-head"><h2>المدن — عدد الطلبات</h2></div>
         <div class="bars" id="top-cities"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>المدن — الإيرادات</h2><span class="note">ر.س</span></div>
+        <div class="bars" id="rev-cities"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>أيام المناسبات</h2></div>
+        <div class="bars" id="top-weekdays"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>الإضافات</h2></div>
+        <div class="bars" id="top-addons"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>الأجهزة</h2></div>
+        <div class="bars" id="devices"></div>
       </section>
     </div>
 
+    <!-- الجدول -->
+    <h2 class="section-title">كل الطلبات</h2>
     <div class="toolbar">
       <label class="f grow">
         <span>بحث — رقم الطلب، الاسم، الجوال، الشركة، المدينة</span>
@@ -94,20 +166,20 @@
           <option value="cancelled">ملغي</option>
         </select>
       </label>
-      <span class="who" id="count" style="padding-block-end:.8rem"></span>
+      <span class="count" id="count"></span>
     </div>
 
     <div class="table-wrap">
-      <table>
+      <table id="orders-table">
         <thead>
           <tr>
-            <th>رقم الطلب</th>
-            <th>العميل</th>
+            <th class="sortable" data-sort="created_at">رقم الطلب <span class="arrow">⇅</span></th>
+            <th class="sortable" data-sort="customer_name">العميل <span class="arrow">⇅</span></th>
             <th>الجوال</th>
-            <th>الباقة</th>
-            <th>تاريخ المناسبة</th>
-            <th>الموقع</th>
-            <th>الإجمالي</th>
+            <th class="sortable" data-sort="package_name">الباقة <span class="arrow">⇅</span></th>
+            <th class="sortable" data-sort="event_date">تاريخ المناسبة <span class="arrow">⇅</span></th>
+            <th class="sortable" data-sort="city">الموقع <span class="arrow">⇅</span></th>
+            <th class="sortable" data-sort="total">الإجمالي <span class="arrow">⇅</span></th>
             <th>الحالة</th>
           </tr>
         </thead>
