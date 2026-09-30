@@ -640,12 +640,56 @@
     return `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(buildMessage())}`;
   }
 
-  function confirmOrder() {
+  /** Shapes the current booking into the row the database expects. */
+  function orderRow(t) {
+    const sweets = t.lines.filter((l) => l.dessert);
+    const addons = t.lines.filter((l) => !l.dessert);
+    return {
+      ref: currentRef,
+      service: state.service,
+      package_id: t.base.id,
+      package_name: state.service === 'counter' ? `${t.base.cups} كوب` : t.base.ar,
+      package_price: t.base.price,
+      days: state.days,
+      event_date: state.date || null,
+      event_time: state.time,
+      city: state.city,
+      district: state.district,
+      venue: state.venue,
+      lat: state.lat,
+      lng: state.lng,
+      client_type: state.clientType,
+      customer_name: state.name,
+      phone: state.phone,
+      company: state.clientType === 'company' ? state.company : null,
+      vat: state.clientType === 'company' ? state.vat : null,
+      notes: state.notes,
+      included_baristas: includedBaristas(),
+      items: t.lines.map((l) => ({
+        id: l.id, name: l.ar, kind: l.dessert ? 'dessert' : 'addon',
+        unit: l.unitAr, qty: l.qty, price: l.price, total: l.total,
+      })),
+      desserts_total: round2(sweets.reduce((sum, l) => sum + l.total, 0)),
+      addons_total: round2(addons.reduce((sum, l) => sum + l.total, 0)),
+      total: t.grand,
+    };
+  }
+
+  async function confirmOrder() {
     const problem = validate();
     if (problem) { $('#err').textContent = problem; return; }
 
     currentRef = orderRef();
     const t = totals();
+
+    // Save first: if the customer never sends the WhatsApp message we still
+    // have their details and can follow up.
+    const button = $('#btn-send');
+    button.disabled = true;
+    button.textContent = 'جارٍ الحفظ…';
+    await window.wekadSaveOrder?.(orderRow(t));
+    button.disabled = false;
+    button.textContent = 'تأكيد الطلب';
     track('purchase', {
       transaction_id: currentRef,
       currency: 'SAR',
