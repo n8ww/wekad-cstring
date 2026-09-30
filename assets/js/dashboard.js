@@ -581,19 +581,44 @@
     $('#login-err').hidden = !message;
   }
 
-  async function showDashboard() {
+  let lastSync = null;
+  let autoTimer = null;
+
+  function stampSync() {
+    lastSync = new Date();
+    const el = $('#sync');
+    if (el) {
+      el.textContent = `آخر تحديث ${new Intl.DateTimeFormat('ar-SA-u-ca-gregory-nu-latn',
+        { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(lastSync)}`;
+    }
+  }
+
+  /** يُبقي اللوحة حيّة: تحديث دوري، وفوري عند العودة إلى التبويب. */
+  function startAutoRefresh() {
+    clearInterval(autoTimer);
+    autoTimer = setInterval(() => {
+      if (!document.hidden && !$('#dash').hidden) showDashboard({ quiet: true });
+    }, 30000);
+  }
+
+  async function showDashboard(opts = {}) {
     $('#login').hidden = true;
     $('#dash').hidden = false;
     $('#who').textContent = session?.user?.email ?? '';
+    if (!opts.quiet) $('#refresh').textContent = 'جارٍ التحديث…';
     try {
       const [rows, visits] = await Promise.all([fetchOrders(), fetchVisits()]);
       if (rows === null) return;
       allOrders = rows;
       allVisits = visits || [];
       applyRange();
+      stampSync();
+      startAutoRefresh();
     } catch (error) {
       console.error(error);
       $('#table-body').innerHTML = '<tr><td colspan="8"><p class="empty">تعذّر تحميل الطلبات</p></td></tr>';
+    } finally {
+      $('#refresh').textContent = 'تحديث';
     }
   }
 
@@ -655,6 +680,12 @@
       const row = $(`tr[data-detail="${id}"]`);
       row.hidden = !row.hidden;
       e.target.textContent = row.hidden ? 'تفاصيل' : 'إخفاء';
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && !$('#dash').hidden && session?.access_token) {
+        showDashboard({ quiet: true });
+      }
     });
 
     loadSession();

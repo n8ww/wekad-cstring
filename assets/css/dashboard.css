@@ -325,3 +325,14 @@ tr.row-detail td { background: var(--surface-2); }
 .panel-head .note { display: flex; gap: 0.9rem; align-items: center; }
 .panel-head .lg { display: inline-flex; align-items: center; gap: 0.3rem; }
 .panel-head .lg i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+
+/* سطر الحساب وآخر تحديث */
+.sync-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; margin-block-end: 1rem; }
+.sync-row #sync { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 0.4rem; }
+.sync-row #sync::before {
+  content: '';
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--brand-bright);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
