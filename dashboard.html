@@ -42,191 +42,176 @@
   </form>
 </div>
 
-<!-- ===== اللوحة ===== -->
+<!-- ===== لوحة المدير ===== -->
 <div id="dash" hidden>
-  <div class="wrap">
+  <div class="shell">
 
-    <header class="dash-head">
-      <div class="mark"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="686.8 390.9 546.2 296.2" fill="none">
+    <aside class="side" id="side">
+      <div class="side-mark"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="686.8 390.9 546.2 296.2" fill="none">
 <path transform="matrix(1,0,0,-1,1127.3045,552.1443)" d="M0 0C-3.324-6.019-14.833-23.748-21.275-24.606-97.357-23.802-153.064-25.323-221.573-26.335-241.802-26.766-262.231-27.073-282.856-27.247-294.978-27.349-307.032-27.404-319.017-27.414-324.52-26.623-332.617-24.539-338.978-18.258-349.381-7.989-348.382 7.554-349.066 13.915-353.202 52.549-350.554 92.632-359.958 130.965L-346.197 153.218C-340.627 126.38-338.261 98.034-335.949 70.499-334.642 54.929-335.527 37.542-333.502 22.233-333.161 19.612-332.617 13.446-328.475 7.454-325.707 3.439-322.389 .972-320.237-.395H-292.267L-12.28 .811C-12.052 20.048-34.553 27.28-50.338 28.567-93.034 32.046-141.368 26.744-184.299 26.121-218.295 25.624-266.227 23.03-298.735 28.909-314.097 31.691-314.433 31.509-308.327 45.096-286.576 93.504-225.709 120.616-178.93 138.466L-191.545 109.436C-223.751 97.029-265.851 81.13-290.383 56.136-291.422 55.076-293.038 55.123-292.414 52.744-283.734 52.013-275.134 49.895-266.448 49.124-194.594 42.744-119.718 54.313-47.851 50.371-28.628 49.312-3.747 46.577 3.646 25.792 7.822 14.049 5.63 10.201 0 0" fill="currentColor"/>
 <path transform="matrix(1,0,0,-1,1103.0913,613.9441)" d="M0 0 1.815 5.95C6.843 5.203 11.593 2.383 16.492 1.363 45.095-4.589 73.256 .506 92.799 23.403 99.799 31.605 110.379 46.903 106.102 57.781 87.617 46.936 59.004 45.825 51.187 69.869 45.61 87.023 57.515 113.96 73.082 122.816 106.385 141.764 118.818 84.747 118.243 61.957 117.431 29.879 88.553-27.056 51.128-24.367 31.764-22.976 15.965-9.201 0 0M100.08 77.102C97.641 90.664 79.131 115.653 66.271 97.024 60.052 88.015 68.642 77.102 77.741 77.102Z" fill="currentColor"/>
 <path transform="matrix(1,0,0,-1,1108.6843,667.3061)" d="M0 0 2.708-11.768 116.326 14.364 113.618 26.133Z" fill="currentColor"/>
 <path transform="matrix(1,0,0,-1,727.3729,583.1054)" d="M0 0C-20.416 0-31.828 9.119-32.364 26.162-32.584 34.809-30.915 44.086-28.016 50.433L-25.942 50.139C-26.685 47.646-27.032 45.392-27.032 43.359-27.032 30.44-12.905 26.492 4.144 27.131 15.387 27.359 34.267 29.647 34.267 37.466 34.267 49.908 8.415 67.23-4.234 75.71L4.962 98.123 7.876 98.212C32.946 74.971 39.344 54.561 39.344 37.206 39.344 12.34 26.431-.004 0-.004Z" fill="currentColor"/>
 </svg></div>
-      <h1>لوحة التحكم</h1>
-      <div class="spacer"></div>
-      <div class="ranges" role="group" aria-label="المدى الزمني">
-        <button class="range-btn" data-days="7">٧ أيام</button>
-        <button class="range-btn" data-days="30">٣٠ يوم</button>
-        <button class="range-btn" data-days="90">٩٠ يوم</button>
-        <button class="range-btn on" data-days="0">الكل</button>
+      <nav class="side-nav">
+        <a href="#/overview"  class="nav-item" data-page="overview"><span class="ic">◧</span>نظرة عامة</a>
+        <a href="#/orders"    class="nav-item" data-page="orders"><span class="ic">▤</span>الطلبات<span class="badge-n" id="nav-new"></span></a>
+        <a href="#/analytics" class="nav-item" data-page="analytics"><span class="ic">◔</span>التحليلات</a>
+        <a href="#/users"     class="nav-item" data-page="users"><span class="ic">◉</span>المستخدمون</a>
+      </nav>
+      <div class="side-foot">
+        <div class="who who-email"></div>
+        <span class="pill pill-admin role-badge"></span>
+        <button class="btn btn-ghost btn-sm logout">خروج</button>
       </div>
-      <button class="btn btn-ghost btn-sm refresh">تحديث</button>
-      <button class="btn btn-ghost btn-sm" id="export">تصدير إكسل</button>
-      <button class="btn btn-ghost btn-sm logout">خروج</button>
-    </header>
+    </aside>
 
-    <div class="sync-row"><span class="who who-email"></span><span class="pill pill-admin role-badge"></span><span class="who" id="sync"></span></div>
-
-    <!-- الأرقام المالية -->
-    <section class="kpi-band">
-      <h2>الأداء المالي</h2>
-      <div class="kpis" id="kpis-money"></div>
-    </section>
-
-    <!-- أرقام الزوار -->
-    <section class="kpi-band">
-      <h2>الزوار وقمع الحجز</h2>
-      <div class="kpis" id="kpis-traffic"></div>
-    </section>
-
-    <!-- أرقام التشغيل -->
-    <section class="kpi-band">
-      <h2>أرقام التشغيل</h2>
-      <div class="kpis" id="kpis-ops"></div>
-    </section>
-
-    <!-- الرسوم -->
-    <div class="panels">
-      <section class="panel panel--wide">
-        <div class="panel-head">
-          <h2>الطلبات والزوار يومياً</h2>
-          <span class="note" id="daily-note"></span>
+    <main class="main">
+      <header class="topbar">
+        <button class="btn btn-ghost btn-sm side-toggle" id="side-toggle" aria-label="القائمة">☰</button>
+        <h1 id="page-title">نظرة عامة</h1>
+        <div class="spacer"></div>
+        <div class="ranges" role="group" aria-label="المدى الزمني">
+          <button class="range-btn" data-days="7">٧ أيام</button>
+          <button class="range-btn" data-days="30">٣٠ يوم</button>
+          <button class="range-btn" data-days="90">٩٠ يوم</button>
+          <button class="range-btn on" data-days="0">الكل</button>
         </div>
-        <div class="cols" id="chart-daily"></div>
-        <div class="axis-note"><span>الأقدم</span><span>اليوم</span></div>
+        <span class="who" id="sync"></span>
+        <button class="btn btn-ghost btn-sm refresh">تحديث</button>
+      </header>
+
+      <!-- ===== نظرة عامة ===== -->
+      <section class="page on" data-page="overview">
+        <h2 class="section-title">الأداء المالي</h2>
+        <div class="kpis" id="kpis-money"></div>
+
+        <h2 class="section-title">الزوار وقمع الحجز</h2>
+        <div class="kpis" id="kpis-traffic"></div>
+
+        <h2 class="section-title">أرقام التشغيل</h2>
+        <div class="kpis" id="kpis-ops"></div>
+
+        <details class="drop">
+          <summary><span class="s-title">الطلبات والزوار يومياً</span><span class="s-cue">عرض</span></summary>
+          <div class="drop-body">
+            <div class="panel-head"><h2></h2><span class="note" id="daily-note"></span></div>
+            <div class="cols" id="chart-daily"></div>
+            <div class="axis-note"><span>الأقدم</span><span>اليوم</span></div>
+          </div>
+        </details>
+
+        <details class="drop">
+          <summary><span class="s-title">قمع الحجز</span><span class="s-cue">عرض</span></summary>
+          <div class="drop-body"><div class="bars" id="funnel"></div></div>
+        </details>
+
+        <details class="drop">
+          <summary><span class="s-title">حالات الطلبات</span><span class="s-cue">عرض</span></summary>
+          <div class="drop-body"><div class="bars" id="status-bars"></div></div>
+        </details>
       </section>
 
-      <section class="panel">
-        <div class="panel-head"><h2>قمع الحجز</h2><span class="note">من زائر إلى طلب</span></div>
-        <div class="bars" id="funnel"></div>
+      <!-- ===== الطلبات ===== -->
+      <section class="page" data-page="orders">
+        <div class="toolbar">
+          <label class="f grow">
+            <span>بحث — رقم الطلب، الاسم، الجوال، الشركة، المدينة</span>
+            <input type="search" id="q" placeholder="اكتب للبحث…">
+          </label>
+          <label class="f">
+            <span>الحالة</span>
+            <select id="filter-status">
+              <option value="">الكل</option>
+              <option value="new">جديد</option>
+              <option value="contacted">تواصلنا</option>
+              <option value="confirmed">مؤكّد</option>
+              <option value="done">منجز</option>
+              <option value="cancelled">ملغي</option>
+            </select>
+          </label>
+          <label class="f">
+            <span>المدينة</span>
+            <select id="filter-city"><option value="">الكل</option></select>
+          </label>
+          <button class="btn btn-ghost" id="export">تصدير إكسل</button>
+          <span class="count" id="count"></span>
+        </div>
+
+        <div class="table-wrap">
+          <table id="orders-table">
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="created_at">رقم الطلب <span class="arrow">⇅</span></th>
+                <th class="sortable" data-sort="customer_name">العميل <span class="arrow">⇅</span></th>
+                <th>الجوال</th>
+                <th class="sortable" data-sort="package_name">الباقة <span class="arrow">⇅</span></th>
+                <th class="sortable" data-sort="event_date">تاريخ المناسبة <span class="arrow">⇅</span></th>
+                <th class="sortable" data-sort="city">الموقع <span class="arrow">⇅</span></th>
+                <th class="sortable" data-sort="total">الإجمالي <span class="arrow">⇅</span></th>
+                <th>الحالة</th>
+              </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
       </section>
 
-      <section class="panel">
-        <div class="panel-head"><h2>مصادر الزوار</h2></div>
-        <div class="bars" id="sources"></div>
+      <!-- ===== التحليلات ===== -->
+      <section class="page" data-page="analytics">
+        <div class="panels">
+          <section class="panel"><div class="panel-head"><h2>مصادر الزوار</h2></div><div class="bars" id="sources"></div></section>
+          <section class="panel"><div class="panel-head"><h2>الأجهزة</h2></div><div class="bars" id="devices"></div></section>
+          <section class="panel"><div class="panel-head"><h2>الإيرادات شهرياً</h2><span class="note">المؤكّدة فقط</span></div><div class="cols" id="chart-monthly"></div></section>
+          <section class="panel"><div class="panel-head"><h2>الباقات الأكثر طلباً</h2></div><div class="bars" id="top-packages"></div></section>
+          <section class="panel"><div class="panel-head"><h2>الحلى الأكثر طلباً</h2></div><div class="bars" id="top-desserts"></div></section>
+          <section class="panel"><div class="panel-head"><h2>الإضافات</h2></div><div class="bars" id="top-addons"></div></section>
+          <section class="panel"><div class="panel-head"><h2>المدن — عدد الطلبات</h2></div><div class="bars" id="top-cities"></div></section>
+          <section class="panel"><div class="panel-head"><h2>المدن — الإيرادات</h2><span class="note">ر.س</span></div><div class="bars" id="rev-cities"></div></section>
+          <section class="panel"><div class="panel-head"><h2>أيام المناسبات</h2></div><div class="bars" id="top-weekdays"></div></section>
+        </div>
       </section>
 
-      <section class="panel">
-        <div class="panel-head"><h2>الإيرادات شهرياً</h2><span class="note">المؤكّدة فقط</span></div>
-        <div class="cols" id="chart-monthly"></div>
+      <!-- ===== المستخدمون ===== -->
+      <section class="page" data-page="users">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>إنشاء حساب جديد</h2>
+            <span class="note">المدير يشوف كل شي · الموظف يشوف الجدول فقط بلا أسعار</span>
+          </div>
+          <form class="staff-add" id="staff-form">
+            <label class="f grow">
+              <span>البريد الإلكتروني</span>
+              <input type="email" id="staff-email" dir="ltr" required placeholder="name@example.com">
+            </label>
+            <label class="f">
+              <span>كلمة المرور</span>
+              <input type="text" id="staff-pass" dir="ltr" required minlength="6" placeholder="٦ أحرف فأكثر">
+            </label>
+            <label class="f">
+              <span>الصلاحية</span>
+              <select id="staff-role">
+                <option value="staff">موظف</option>
+                <option value="admin">مدير</option>
+              </select>
+            </label>
+            <button type="button" class="btn btn-ghost" id="gen-pass">توليد</button>
+            <button type="submit" class="btn btn-solid">إنشاء الحساب</button>
+          </form>
+          <div class="alert alert-ok" id="staff-ok" hidden></div>
+          <div class="alert alert-err" id="staff-err" hidden></div>
+          <div class="alert alert-warn" id="confirm-warn" hidden></div>
+        </div>
+
+        <div class="panel" style="margin-block-start:1rem">
+          <div class="panel-head"><h2>المستخدمون الحاليون</h2></div>
+          <div class="staff-list" id="staff-list"></div>
+        </div>
       </section>
 
-      <section class="panel">
-        <div class="panel-head"><h2>حالات الطلبات</h2></div>
-        <div class="bars" id="status-bars"></div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head"><h2>الباقات الأكثر طلباً</h2></div>
-        <div class="bars" id="top-packages"></div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head"><h2>الحلى الأكثر طلباً</h2></div>
-        <div class="bars" id="top-desserts"></div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head"><h2>المدن — عدد الطلبات</h2></div>
-        <div class="bars" id="top-cities"></div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head"><h2>المدن — الإيرادات</h2><span class="note">ر.س</span></div>
-        <div class="bars" id="rev-cities"></div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head"><h2>أيام المناسبات</h2></div>
-        <div class="bars" id="top-weekdays"></div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head"><h2>الإضافات</h2></div>
-        <div class="bars" id="top-addons"></div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head"><h2>الأجهزة</h2></div>
-        <div class="bars" id="devices"></div>
-      </section>
-    </div>
-
-    <!-- الجدول -->
-    <h2 class="section-title">المستخدمون والصلاحيات</h2>
-    <section class="panel" style="margin-block-end:1.4rem">
-      <div class="panel-head">
-        <h2>من يقدر يدخل اللوحة</h2>
-        <span class="note">المدير يشوف كل شي · الموظف يشوف الجدول فقط بلا أسعار</span>
-      </div>
-      <form class="staff-add" id="staff-form">
-        <label class="f grow">
-          <span>البريد الإلكتروني</span>
-          <input type="email" id="staff-email" dir="ltr" required placeholder="name@example.com">
-        </label>
-        <label class="f">
-          <span>كلمة المرور</span>
-          <input type="text" id="staff-pass" dir="ltr" required minlength="6" placeholder="٦ أحرف فأكثر">
-        </label>
-        <label class="f">
-          <span>الصلاحية</span>
-          <select id="staff-role">
-            <option value="staff">موظف</option>
-            <option value="admin">مدير</option>
-          </select>
-        </label>
-        <button type="button" class="btn btn-ghost" id="gen-pass">توليد</button>
-        <button type="submit" class="btn btn-solid">إنشاء الحساب</button>
-      </form>
-      <div class="alert alert-ok" id="staff-ok" hidden></div>
-      <div class="alert alert-err" id="staff-err" hidden></div>
-      <p class="hint">تكتب البريد وكلمة المرور، والنظام ينشئ الحساب فوراً. أعطِ الموظف البيانات وهو يدخل بها مباشرة.</p>
-      <div class="alert alert-warn" id="confirm-warn" hidden></div>
-      <div class="staff-list" id="staff-list"></div>
-    </section>
-
-    <h2 class="section-title">كل الطلبات</h2>
-    <div class="toolbar">
-      <label class="f grow">
-        <span>بحث — رقم الطلب، الاسم، الجوال، الشركة، المدينة</span>
-        <input type="search" id="q" placeholder="اكتب للبحث…">
-      </label>
-      <label class="f">
-        <span>الحالة</span>
-        <select id="filter-status">
-          <option value="">الكل</option>
-          <option value="new">جديد</option>
-          <option value="contacted">تواصلنا</option>
-          <option value="confirmed">مؤكّد</option>
-          <option value="done">منجز</option>
-          <option value="cancelled">ملغي</option>
-        </select>
-      </label>
-      <span class="count" id="count"></span>
-    </div>
-
-    <div class="table-wrap">
-      <table id="orders-table">
-        <thead>
-          <tr>
-            <th class="sortable" data-sort="created_at">رقم الطلب <span class="arrow">⇅</span></th>
-            <th class="sortable" data-sort="customer_name">العميل <span class="arrow">⇅</span></th>
-            <th>الجوال</th>
-            <th class="sortable" data-sort="package_name">الباقة <span class="arrow">⇅</span></th>
-            <th class="sortable" data-sort="event_date">تاريخ المناسبة <span class="arrow">⇅</span></th>
-            <th class="sortable" data-sort="city">الموقع <span class="arrow">⇅</span></th>
-            <th class="sortable" data-sort="total">الإجمالي <span class="arrow">⇅</span></th>
-            <th>الحالة</th>
-          </tr>
-        </thead>
-        <tbody id="table-body"></tbody>
-      </table>
-    </div>
-
+    </main>
   </div>
 </div>
-
 
 <!-- ===== شاشة الموظف: الجدول فقط ===== -->
 <div id="staff-view" hidden>

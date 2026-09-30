@@ -601,9 +601,11 @@
   function visibleRows() {
     const q = $('#q').value.trim().toLowerCase();
     const status = $('#filter-status').value;
+    const city = $('#filter-city')?.value || '';
 
     const rows = scoped.filter((r) => {
       if (status && r.status !== status) return false;
+      if (city && r.city !== city) return false;
       if (!q) return true;
       return [r.ref, r.customer_name, r.phone, r.company, r.city, r.district, r.venue]
         .some((v) => String(v ?? '').toLowerCase().includes(q));
@@ -622,6 +624,9 @@
   function renderTable() {
     const rows = visibleRows();
     $('#count').textContent = `${rows.length} من ${scoped.length}`;
+    const newCount = scoped.filter((r) => r.status === 'new').length;
+    const badge = $('#nav-new');
+    if (badge) { badge.textContent = newCount || ''; badge.hidden = !newCount; }
 
     $$('#orders-table th.sortable').forEach((th) => {
       th.classList.toggle('sorted', th.dataset.sort === sortKey);
@@ -795,6 +800,39 @@
         }).join('');
   }
 
+  // ---------- التنقّل بين الصفحات ----------
+  const PAGE_TITLES = {
+    overview: 'نظرة عامة',
+    orders: 'الطلبات',
+    analytics: 'التحليلات',
+    users: 'المستخدمون',
+  };
+
+  function currentPage() {
+    const hash = (location.hash || '').replace('#/', '');
+    return PAGE_TITLES[hash] ? hash : 'overview';
+  }
+
+  function showPage(name) {
+    $$('.page').forEach((el) => el.classList.toggle('on', el.dataset.page === name));
+    $$('.nav-item').forEach((el) => el.classList.toggle('on', el.dataset.page === name));
+    const title = $('#page-title');
+    if (title) title.textContent = PAGE_TITLES[name];
+    $('#side')?.classList.remove('open');
+    if (name === 'users') renderStaff();
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+
+  /** يملأ قائمة تصفية المدن من الطلبات المتاحة. */
+  function fillCityFilter() {
+    const select = $('#filter-city');
+    if (!select) return;
+    const current = select.value;
+    const cities = [...new Set(allOrders.map((r) => r.city).filter(Boolean))].sort();
+    select.innerHTML = '<option value="">الكل</option>'
+      + cities.map((c) => `<option ${c === current ? 'selected' : ''}>${esc(c)}</option>`).join('');
+  }
+
   // ---------- الشاشات ----------
   function showLogin(message) {
     $('#login').hidden = false;
@@ -858,8 +896,9 @@
       allOrders = rows;
       allVisits = visits || [];
       applyRange();
-      renderStaff();
+      fillCityFilter();
       checkConfirmSetting();
+      showPage(currentPage());
       stampSync();
       startAutoRefresh();
     } catch (error) {
@@ -940,6 +979,10 @@
     $('#export').addEventListener('click', exportCsv);
     $('#q').addEventListener('input', renderTable);
     $('#filter-status').addEventListener('change', renderTable);
+
+    window.addEventListener('hashchange', () => showPage(currentPage()));
+    $('#side-toggle')?.addEventListener('click', () => $('#side').classList.toggle('open'));
+    $('#filter-city')?.addEventListener('change', renderTable);
 
     $$('.range-btn').forEach((b) => b.addEventListener('click', () => {
       $$('.range-btn').forEach((x) => x.classList.toggle('on', x === b));
