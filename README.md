@@ -192,6 +192,58 @@ const MAP_CENTER = [26.4207, 50.0888];   // مركز الخريطة الافتر
 
 ---
 
+---
+
+## التحليلات
+
+الموقع يرسل أحداثاً جاهزة لـ **Google Analytics 4** و **Microsoft Clarity** — الاثنان مجانيان.
+افتح [assets/js/analytics.js](assets/js/analytics.js) وضع المعرّفين في أول الملف:
+
+```js
+const GA4_ID     = '';   // G-XXXXXXXXXX
+const CLARITY_ID = '';   // abcdefghij
+```
+
+ما دامت فاضية، الموقع يشتغل عادي والأحداث تُطبع في Console فقط.
+
+### كيف تجيب المعرّفات
+
+**Google Analytics** — [analytics.google.com](https://analytics.google.com) ← Admin ←
+Create property ← اسم الموقع والمنطقة الزمنية ← Web ← اكتب `wekad.store` ←
+ينطلع لك **Measurement ID** يبدأ بـ `G-`.
+
+**Microsoft Clarity** — [clarity.microsoft.com](https://clarity.microsoft.com) ←
+New project ← اكتب `wekad.store` ← من Settings انسخ **Project ID**.
+
+### الأحداث المرسَلة
+
+| الحدث | متى يُرسل | يحمل |
+|---|---|---|
+| `page_view` | فتح الموقع | تلقائي |
+| `select_service` | اختيار ركن أو حافظات | نوع الخدمة |
+| `begin_checkout` | أول تقدّم في نموذج الحجز | القيمة المبدئية |
+| `booking_step` | كل خطوة | رقم الخطوة واسمها |
+| `select_item` | اختيار باقة أو حافظة | الاسم والسعر |
+| `add_to_cart` | أول إضافة لصنف حلى أو إضافة | الصنف والكمية والقيمة |
+| `set_location` | تحديد الموقع على الخريطة | المدينة |
+| `booking_error` | توقّف العميل بسبب حقل ناقص | الخطوة ونص الخطأ |
+| `purchase` | تأكيد الطلب | رقم الطلب، الإجمالي، وكل الأصناف |
+
+`purchase` بصيغة GA4 القياسية، فتقارير الإيرادات ومتوسط قيمة الطلب تشتغل تلقائياً
+بدون أي إعداد إضافي.
+
+### وين تشوف الأرقام
+
+- **كم زائر ومن وين جاء وأي جهاز** → Analytics ← Reports ← Acquisition / Tech
+- **وين يطلعون من الحجز** → Analytics ← Explore ← Funnel exploration،
+  رتّب الخطوات: `begin_checkout` ثم `booking_step` ثم `purchase`
+- **أي باقة وأي حلى الأكثر طلباً + متوسط قيمة الطلب** → Analytics ← Reports ←
+  Monetization ← Ecommerce purchases
+- **تسجيلات فيديو وخرائط حرارية** → Clarity ← Recordings / Heatmaps
+- **الحقول اللي يتعثّرون فيها** → Analytics ← Events ← `booking_error`
+
+> البيانات تبدأ تظهر خلال ٢٤ ساعة تقريباً في Analytics، وخلال ساعتين في Clarity.
+
 ## بنية الملفات
 
 ```
@@ -199,8 +251,11 @@ wekad/
 ├── index.html              الصفحة كاملة
 ├── assets/
 │   ├── css/style.css       التصميم والألوان والحركات
-│   ├── js/app.js           بيانات الباقات + منطق الحجز + رسالة الواتساب
+│   ├── js/app.js           بيانات الباقات + منطق الحجز + رسالة الطلب
+│   ├── js/analytics.js     معرّفات Analytics و Clarity
 │   └── img/                الشعار والزخرفة والصور
+├── deploy.sh               رفع أي تعديل بأمر واحد
+├── CNAME                   النطاق المخصص wekad.store
 └── README.md
 ```
 

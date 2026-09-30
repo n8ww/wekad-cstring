@@ -126,6 +126,9 @@
     notes: '',
   };
 
+  // Analytics is optional: the app must behave identically when it is absent.
+  const track = (name, params) => { try { window.wekadTrack?.(name, params); } catch { /* never break the form */ } };
+
   const $  = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
@@ -358,6 +361,12 @@
   // ---------- steps ----------
   const PANES = ['service', 'size', 'items', 'when', 'client', 'review'];
 
+  const STEP_LABELS = {
+    service: 'الخدمة', size: 'الحجم', items: 'الحلى والإضافات',
+    when: 'الموعد والموقع', client: 'بياناتك', review: 'المراجعة',
+  };
+  let reachedCheckout = false;
+
   function goto(index, scroll = true) {
     state.step = Math.max(0, Math.min(PANES.length - 1, index));
 
@@ -374,6 +383,17 @@
 
     if (state.step === 1) syncSizePane();
     if (PANES[state.step] === 'when') initMap();
+
+    const paneName = PANES[state.step];
+    if (state.step > 0 && !reachedCheckout) {
+      reachedCheckout = true;
+      track('begin_checkout', { currency: 'SAR', value: totals().grand });
+    }
+    track('booking_step', {
+      step_number: state.step + 1,
+      step_name: paneName,
+      step_label: STEP_LABELS[paneName],
+    });
     if (last) renderReview();
     renderTotal();
     $('#err').textContent = '';
@@ -411,6 +431,7 @@
     state.lng = lng;
     if (marker) marker.setLatLng([lat, lng]);
     if (recentre && map) map.setView([lat, lng], Math.max(map.getZoom(), 15));
+    track('set_location', { city: state.city });
     $('#map-readout').innerHTML =
       `<span class="ok">✓ تم تحديد الموقع</span> <a href="${mapsLink()}" target="_blank" rel="noopener">فتح في خرائط Google</a>`;
   }
@@ -624,6 +645,26 @@
     if (problem) { $('#err').textContent = problem; return; }
 
     currentRef = orderRef();
+    const t = totals();
+    track('purchase', {
+      transaction_id: currentRef,
+      currency: 'SAR',
+      value: t.grand,
+      service: state.service,
+      days: state.days,
+      client_type: state.clientType,
+      city: state.city,
+      items: [
+        { item_id: t.base.id, item_name: state.service === 'counter' ? `${t.base.cups} كوب` : t.base.ar,
+          item_category: state.service, price: t.base.price, quantity: state.days },
+        ...t.lines.map((l) => ({
+          item_id: l.id, item_name: l.ar,
+          item_category: l.dessert ? 'dessert' : 'addon',
+          price: l.price, quantity: l.qty,
+        })),
+      ],
+    });
+
     const url = orderUrl();
     window.open(url, '_blank', 'noopener');
 
@@ -640,13 +681,24 @@
       state.service = el.value;
       syncSizePane();
       renderTotal();
+      track('select_service', { service: el.value });
     }));
 
     $('#opt-packages').addEventListener('change', (e) => {
-      if (e.target.name === 'pkg') { state.packageId = e.target.value; renderTotal(); }
+      if (e.target.name === 'pkg') {
+        state.packageId = e.target.value;
+        renderTotal();
+        const pkg = PACKAGES.find((p) => p.id === e.target.value);
+        track('select_item', { item_id: pkg.id, item_name: `${pkg.cups} كوب`, price: pkg.price, item_category: 'package' });
+      }
     });
     $('#opt-flasks').addEventListener('change', (e) => {
-      if (e.target.name === 'flask') { state.flaskId = e.target.value; renderTotal(); }
+      if (e.target.name === 'flask') {
+        state.flaskId = e.target.value;
+        renderTotal();
+        const f = FLASKS.find((x) => x.id === e.target.value);
+        track('select_item', { item_id: f.id, item_name: f.ar, price: f.price, item_category: 'flask' });
+      }
     });
 
     // quantity steppers for add-ons and desserts
@@ -662,9 +714,21 @@
       else if (dir === '-') value -= item.step;
 
       value = Math.max(0, Math.min(item.max, value));
+      const wasZero = (state.qty[item.id] || 0) === 0;
       input.value = value;
       state.qty[item.id] = value;
       renderTotal();
+
+      if (wasZero && value > 0) {
+        track('add_to_cart', {
+          currency: 'SAR',
+          value: item.price * value,
+          item_id: item.id,
+          item_name: item.ar,
+          item_category: item.dessert ? 'dessert' : 'addon',
+          quantity: value,
+        });
+      }
     };
     ['#qty-extras', '#qty-desserts'].forEach((sel) => {
       const host = $(sel);
@@ -704,7 +768,11 @@
 
     $('#btn-next').addEventListener('click', () => {
       const problem = validate();
-      if (problem) { $('#err').textContent = problem; return; }
+      if (problem) {
+        $('#err').textContent = problem;
+        track('booking_error', { step_name: PANES[state.step], message: problem });
+        return;
+      }
       goto(state.step + 1);
     });
     $('#btn-back').addEventListener('click', () => goto(state.step - 1));
