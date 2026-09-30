@@ -91,6 +91,33 @@
     return response.json();
   }
 
+  async function signUp(email, password) {
+    const response = await fetch(`${cfg.SUPABASE_URL}/auth/v1/signup`, {
+      method: 'POST',
+      headers: { apikey: cfg.SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const msg = data.msg || data.error_description || data.message || '';
+      if (/already/i.test(msg)) throw new Error('هذا البريد له حساب بالفعل — استخدم تسجيل الدخول.');
+      if (/password/i.test(msg)) throw new Error('كلمة المرور قصيرة — ٦ أحرف على الأقل.');
+      throw new Error(msg || 'تعذّر إنشاء الحساب');
+    }
+    return data;   // قد يحتوي جلسة مباشرة، أو لا شيء إن كان التأكيد بالبريد مفعّلاً
+  }
+
+  /**
+   * يربط الحساب بصلاحيته من قائمة المسموح لهم. يُستدعى بعد كل دخول، فيغطّي
+   * حالة من أُضيف بعد أن أنشأ حسابه.
+   */
+  async function claimAccess() {
+    const response = await api('/rest/v1/rpc/claim_access', { method: 'POST', body: '{}' });
+    if (!response.ok) return null;
+    const value = await response.json().catch(() => null);
+    return typeof value === 'string' ? value : null;
+  }
+
   async function fetchRole() {
     const response = await api('/rest/v1/rpc/my_role', { method: 'POST', body: '{}' });
     if (!response.ok) return null;
@@ -750,7 +777,7 @@
     if (!opts.quiet) $$('.refresh').forEach((b) => { b.textContent = 'جارٍ التحديث…'; });
 
     try {
-      if (!role) role = await fetchRole();
+      if (!role) role = (await claimAccess()) || (await fetchRole());
 
       if (!role) {
         $('#dash').hidden = true;
@@ -794,19 +821,66 @@
   document.addEventListener('DOMContentLoaded', async () => {
     if (!cfg.SUPABASE_URL) { showLogin('لم تُضبط إعدادات قاعدة البيانات.'); return; }
 
+    let authMode = 'signin';
+
+    function setAuthMode(mode) {
+      authMode = mode;
+      const up = mode === 'signup';
+      $$('.tab-btn').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
+      $('#auth-title').textContent = up ? 'إنشاء كلمة المرور' : 'تسجيل الدخول';
+      $('#auth-sub').textContent = up
+        ? 'اكتب بريدك الذي أضافه المدير، واختر كلمة مرورك'
+        : 'ادخل إلى لوحة وِكاد';
+      $('#pass-label').textContent = up ? 'كلمة المرور الجديدة' : 'كلمة المرور';
+      $('#password').setAttribute('autocomplete', up ? 'new-password' : 'current-password');
+      $('#login-btn').textContent = up ? 'إنشاء الحساب' : 'دخول';
+      $('#pass-hint').hidden = !up;
+      $('#signup-note').hidden = !up;
+      $('#login-err').hidden = true;
+      $('#login-ok').hidden = true;
+    }
+
+    $$('.tab-btn').forEach((b) => b.addEventListener('click', () => setAuthMode(b.dataset.mode)));
+
     $('#login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const button = $('#login-btn');
+      const email = $('#email').value.trim();
+      const password = $('#password').value;
+      const label = button.textContent;
+
       button.disabled = true;
-      button.textContent = 'جارٍ الدخول…';
+      button.textContent = 'لحظة…';
+      $('#login-err').hidden = true;
+      $('#login-ok').hidden = true;
+
       try {
-        saveSession(await signIn($('#email').value.trim(), $('#password').value));
+        if (authMode === 'signup') {
+          const data = await signUp(email, password);
+          if (data.access_token) {
+            saveSession(data);
+          } else {
+            // التأكيد بالبريد مفعّل: نحاول الدخول مباشرة، وإلا نوجّهه للبريد
+            try {
+              saveSession(await signIn(email, password));
+            } catch {
+              $('#login-ok').textContent =
+                'أُنشئ حسابك. افتح بريدك واضغط رابط التفعيل، ثم ارجع وسجّل دخولك.';
+              $('#login-ok').hidden = false;
+              setAuthMode('signin');
+              return;
+            }
+          }
+        } else {
+          saveSession(await signIn(email, password));
+        }
+        role = null;
         await showDashboard();
       } catch (error) {
         showLogin(error.message);
       } finally {
         button.disabled = false;
-        button.textContent = 'دخول';
+        button.textContent = label;
       }
     });
 

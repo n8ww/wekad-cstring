@@ -366,3 +366,21 @@ tr.row-detail td { background: var(--surface-2); }
 .staff-row .role-select { min-width: 92px; }
 .staff-row .me { color: var(--brand); font-size: 0.78rem; }
 .staff-row select:disabled, .staff-row button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* تبويبات الدخول / إنشاء الحساب */
+.tabs { display: flex; gap: 0.25rem; background: var(--surface-sunk); padding: 0.25rem; border-radius: 11px; margin-block-end: 1.3rem; }
+.tab-btn {
+  flex: 1;
+  border: 0;
+  background: none;
+  border-radius: 9px;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.tab-btn.on { background: var(--surface); color: var(--brand); box-shadow: var(--shadow); }
+.field-hint { display: block; font-size: 0.76rem; color: var(--ink-muted); margin-block-start: 0.35rem; }
+.alert-ok { background: var(--brand-wash); border: 1px solid #cfe8dc; color: var(--brand-deep); }
