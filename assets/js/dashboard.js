@@ -80,7 +80,18 @@
       body: JSON.stringify({ email, password }),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error_description || data.msg || 'تعذّر تسجيل الدخول');
+    if (!response.ok) {
+      const code = data.error_code || '';
+      const msg = data.error_description || data.msg || '';
+      if (code === 'email_not_confirmed' || /not confirmed/i.test(msg)) {
+        const e = new Error('حسابك موجود لكن ينتظر التفعيل. افتح بريدك واضغط رابط التفعيل، أو اطلب من المدير تعطيل التأكيد بالبريد.');
+        e.pending = true;
+        throw e;
+      }
+      const e = new Error(/invalid login/i.test(msg) ? 'البريد أو كلمة المرور غير صحيحة.' : (msg || 'تعذّر تسجيل الدخول'));
+      e.raw = msg;
+      throw e;
+    }
     return data;
   }
 
@@ -830,6 +841,7 @@
       try {
         return await signIn(email, password);
       } catch (signInError) {
+        if (signInError.pending) throw signInError;   // موجود لكن غير مفعّل
         let created;
         try {
           created = await signUp(email, password);
@@ -844,8 +856,9 @@
         // التأكيد بالبريد مفعّل: نجرّب الدخول، وإلا نوجّهه لبريده
         try {
           return await signIn(email, password);
-        } catch {
-          const wait = new Error('أنشأنا حسابك. افتح بريدك واضغط رابط التفعيل ثم ارجع هنا.');
+        } catch (second) {
+          if (second.pending) throw second;
+          const wait = new Error('أنشأنا حسابك ✓ — ينتظر التفعيل. افتح بريدك واضغط رابط التفعيل ثم ارجع وسجّل دخولك بنفس كلمة المرور.');
           wait.pending = true;
           throw wait;
         }
