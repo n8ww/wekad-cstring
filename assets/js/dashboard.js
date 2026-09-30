@@ -821,33 +821,42 @@
   document.addEventListener('DOMContentLoaded', async () => {
     if (!cfg.SUPABASE_URL) { showLogin('لم تُضبط إعدادات قاعدة البيانات.'); return; }
 
-    let authMode = 'signin';
-
-    function setAuthMode(mode) {
-      authMode = mode;
-      const up = mode === 'signup';
-      $$('.tab-btn').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
-      $('#auth-title').textContent = up ? 'إنشاء كلمة المرور' : 'تسجيل الدخول';
-      $('#auth-sub').textContent = up
-        ? 'اكتب بريدك الذي أضافه المدير، واختر كلمة مرورك'
-        : 'ادخل إلى لوحة وِكاد';
-      $('#pass-label').textContent = up ? 'كلمة المرور الجديدة' : 'كلمة المرور';
-      $('#password').setAttribute('autocomplete', up ? 'new-password' : 'current-password');
-      $('#login-btn').textContent = up ? 'إنشاء الحساب' : 'دخول';
-      $('#pass-hint').hidden = !up;
-      $('#signup-note').hidden = !up;
-      $('#login-err').hidden = true;
-      $('#login-ok').hidden = true;
+    /**
+     * دخول موحّد: نحاول الدخول أولاً؛ فإن لم يكن للبريد حساب أنشأناه تلقائياً.
+     * Supabase يعيد نفس الخطأ لكلمة مرور خاطئة ولحساب غير موجود، فنفرّق بينهما
+     * بنتيجة محاولة الإنشاء.
+     */
+    async function enter(email, password) {
+      try {
+        return await signIn(email, password);
+      } catch (signInError) {
+        let created;
+        try {
+          created = await signUp(email, password);
+        } catch (signUpError) {
+          // الحساب موجود ⇒ إذن كلمة المرور هي الخاطئة
+          if (/بالفعل/.test(signUpError.message)) {
+            throw new Error('كلمة المرور غير صحيحة.');
+          }
+          throw signUpError;
+        }
+        if (created.access_token) return created;
+        // التأكيد بالبريد مفعّل: نجرّب الدخول، وإلا نوجّهه لبريده
+        try {
+          return await signIn(email, password);
+        } catch {
+          const wait = new Error('أنشأنا حسابك. افتح بريدك واضغط رابط التفعيل ثم ارجع هنا.');
+          wait.pending = true;
+          throw wait;
+        }
+      }
     }
-
-    $$('.tab-btn').forEach((b) => b.addEventListener('click', () => setAuthMode(b.dataset.mode)));
 
     $('#login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const button = $('#login-btn');
       const email = $('#email').value.trim();
       const password = $('#password').value;
-      const label = button.textContent;
 
       button.disabled = true;
       button.textContent = 'لحظة…';
@@ -855,32 +864,19 @@
       $('#login-ok').hidden = true;
 
       try {
-        if (authMode === 'signup') {
-          const data = await signUp(email, password);
-          if (data.access_token) {
-            saveSession(data);
-          } else {
-            // التأكيد بالبريد مفعّل: نحاول الدخول مباشرة، وإلا نوجّهه للبريد
-            try {
-              saveSession(await signIn(email, password));
-            } catch {
-              $('#login-ok').textContent =
-                'أُنشئ حسابك. افتح بريدك واضغط رابط التفعيل، ثم ارجع وسجّل دخولك.';
-              $('#login-ok').hidden = false;
-              setAuthMode('signin');
-              return;
-            }
-          }
-        } else {
-          saveSession(await signIn(email, password));
-        }
+        saveSession(await enter(email, password));
         role = null;
         await showDashboard();
       } catch (error) {
-        showLogin(error.message);
+        if (error.pending) {
+          $('#login-ok').textContent = error.message;
+          $('#login-ok').hidden = false;
+        } else {
+          showLogin(error.message);
+        }
       } finally {
         button.disabled = false;
-        button.textContent = label;
+        button.textContent = 'دخول';
       }
     });
 

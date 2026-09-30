@@ -22,13 +22,8 @@
 <path transform="matrix(1,0,0,-1,1108.6843,667.3061)" d="M0 0 2.708-11.768 116.326 14.364 113.618 26.133Z" fill="currentColor"/>
 <path transform="matrix(1,0,0,-1,727.3729,583.1054)" d="M0 0C-20.416 0-31.828 9.119-32.364 26.162-32.584 34.809-30.915 44.086-28.016 50.433L-25.942 50.139C-26.685 47.646-27.032 45.392-27.032 43.359-27.032 30.44-12.905 26.492 4.144 27.131 15.387 27.359 34.267 29.647 34.267 37.466 34.267 49.908 8.415 67.23-4.234 75.71L4.962 98.123 7.876 98.212C32.946 74.971 39.344 54.561 39.344 37.206 39.344 12.34 26.431-.004 0-.004Z" fill="currentColor"/>
 </svg></div>
-    <h1 id="auth-title">تسجيل الدخول</h1>
-    <p class="sub" id="auth-sub">ادخل إلى لوحة وِكاد</p>
-
-    <div class="tabs" role="tablist">
-      <button type="button" class="tab-btn on" data-mode="signin">تسجيل الدخول</button>
-      <button type="button" class="tab-btn" data-mode="signup">أول مرة — أنشئ كلمة مرورك</button>
-    </div>
+    <h1>الدخول إلى اللوحة</h1>
+    <p class="sub">اكتب بريدك وكلمة مرورك — وإذا كانت أول مرة ينفتح لك حساب تلقائياً</p>
 
     <div class="alert alert-err" id="login-err" hidden></div>
     <div class="alert alert-ok" id="login-ok" hidden></div>
@@ -38,15 +33,12 @@
       <input type="email" id="email" dir="ltr" required autocomplete="username">
     </label>
     <label class="f">
-      <span id="pass-label">كلمة المرور</span>
+      <span>كلمة المرور</span>
       <input type="password" id="password" required minlength="6" autocomplete="current-password">
-      <span class="field-hint" id="pass-hint" hidden>٦ أحرف على الأقل — اختر كلمة مرور تحفظها</span>
+      <span class="field-hint">أول مرة؟ اختر كلمة مرور من ٦ أحرف فأكثر وبنحفظها لك</span>
     </label>
 
     <button type="submit" class="btn btn-solid btn-block" id="login-btn">دخول</button>
-    <p class="hint" id="signup-note" hidden>
-      لازم يكون بريدك مضافاً من المدير، وإلا ما راح تحصل على صلاحية.
-    </p>
   </form>
 </div>
 
