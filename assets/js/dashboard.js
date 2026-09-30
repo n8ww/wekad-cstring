@@ -141,15 +141,20 @@
     if (!el) return;
     el.innerHTML = !rows.length
       ? '<p class="empty">لا يوجد مستخدمون بعد</p>'
-      : rows.map((r) => `
+      : rows.map((r) => {
+        const isMe = String(r.email).toLowerCase() === String(session?.user?.email || '').toLowerCase();
+        return `
         <div class="staff-row">
-          <span class="staff-mail" dir="ltr">${esc(r.email)}</span>
-          <span class="pill ${r.role === 'admin' ? 'pill-admin' : 'pill-staff'}">
-            ${r.role === 'admin' ? 'مدير' : 'موظف'}</span>
+          <span class="staff-mail" dir="ltr">${esc(r.email)}${isMe ? ' <span class="me">(أنت)</span>' : ''}</span>
+          <select class="status-select role-select" data-email="${esc(r.email)}" ${isMe ? 'disabled title="لا يمكنك تغيير صلاحيتك بنفسك"' : ''}>
+            <option value="staff" ${r.role === 'staff' ? 'selected' : ''}>موظف</option>
+            <option value="admin" ${r.role === 'admin' ? 'selected' : ''}>مدير</option>
+          </select>
           <span class="staff-state ${r.registered ? 'ok' : ''}">
             ${r.registered ? 'سجّل دخوله' : 'لم يسجّل بعد'}</span>
-          <button class="btn btn-ghost btn-sm" data-remove="${esc(r.email)}">حذف</button>
-        </div>`).join('');
+          <button class="btn btn-ghost btn-sm" data-remove="${esc(r.email)}" ${isMe ? 'disabled' : ''}>حذف</button>
+        </div>`;
+      }).join('');
   }
 
   async function addStaff(email, staffRole) {
@@ -159,6 +164,22 @@
       body: JSON.stringify({ email: email.trim().toLowerCase(), role: staffRole }),
     });
     return response.ok;
+  }
+
+  /** تغيير صلاحية مستخدم: في قائمة المسموح لهم وفي ملفه إن كان مسجّلاً. */
+  async function changeRole(email, newRole) {
+    const key = encodeURIComponent(email);
+    const a = await api(`/rest/v1/allowed_staff?email=eq.${key}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ role: newRole }),
+    });
+    await api(`/rest/v1/profiles?email=eq.${key}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ role: newRole }),
+    });
+    return a.ok;
   }
 
   async function removeStaff(email) {
@@ -828,6 +849,18 @@
       if (!email) return;
       if (!(await addStaff(email, $('#staff-role').value))) { alert('تعذّرت الإضافة'); return; }
       $('#staff-email').value = '';
+      renderStaff();
+    });
+
+    $('#staff-list').addEventListener('change', async (e) => {
+      if (!e.target.classList.contains('role-select')) return;
+      const email = e.target.dataset.email;
+      const newRole = e.target.value;
+      if (!confirm(`تغيير صلاحية ${email} إلى ${newRole === 'admin' ? 'مدير' : 'موظف'}؟`)) {
+        renderStaff();
+        return;
+      }
+      if (!(await changeRole(email, newRole))) alert('تعذّر التغيير');
       renderStaff();
     });
 

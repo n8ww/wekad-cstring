@@ -362,3 +362,7 @@ tr.row-detail td { background: var(--surface-2); }
 .row-actions { display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap; margin-block-start: 0.4rem; }
 .btn-danger { border: 1px solid #e6c4bf; background: #fff; color: var(--st-cancelled); }
 .btn-danger:hover { background: #fcecea; }
+
+.staff-row .role-select { min-width: 92px; }
+.staff-row .me { color: var(--brand); font-size: 0.78rem; }
+.staff-row select:disabled, .staff-row button:disabled { opacity: 0.45; cursor: not-allowed; }
