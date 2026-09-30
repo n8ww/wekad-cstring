@@ -11,7 +11,7 @@
      ------------------------------------------------------------------ */
 
   // Google Analytics 4 — من analytics.google.com، شكله: G-XXXXXXXXXX
-  const GA4_ID = '';
+  const GA4_ID = 'G-0FR2WHHC0G';
 
   // Microsoft Clarity — من clarity.microsoft.com، شكله: abcdefghij
   const CLARITY_ID = '';
