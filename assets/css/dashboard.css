@@ -384,3 +384,10 @@ tr.row-detail td { background: var(--surface-2); }
 .tab-btn.on { background: var(--surface); color: var(--brand); box-shadow: var(--shadow); }
 .field-hint { display: block; font-size: 0.76rem; color: var(--ink-muted); margin-block-start: 0.35rem; }
 .alert-ok { background: var(--brand-wash); border: 1px solid #cfe8dc; color: var(--brand-deep); }
+
+.alert-warn { background: #fff6e8; border: 1px solid #f0dcb8; color: #7a5410; }
+.cred-box {
+  display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap;
+  font-family: ui-monospace, monospace; direction: ltr; margin-block-start: 0.5rem;
+}
+.cred-box code { background: rgba(12,26,18,.06); padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.85rem; }

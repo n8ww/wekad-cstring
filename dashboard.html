@@ -162,8 +162,12 @@
       </div>
       <form class="staff-add" id="staff-form">
         <label class="f grow">
-          <span>البريد الإلكتروني للموظف</span>
+          <span>البريد الإلكتروني</span>
           <input type="email" id="staff-email" dir="ltr" required placeholder="name@example.com">
+        </label>
+        <label class="f">
+          <span>كلمة المرور</span>
+          <input type="text" id="staff-pass" dir="ltr" required minlength="6" placeholder="٦ أحرف فأكثر">
         </label>
         <label class="f">
           <span>الصلاحية</span>
@@ -172,9 +176,13 @@
             <option value="admin">مدير</option>
           </select>
         </label>
-        <button type="submit" class="btn btn-solid">إضافة</button>
+        <button type="button" class="btn btn-ghost" id="gen-pass">توليد</button>
+        <button type="submit" class="btn btn-solid">إنشاء الحساب</button>
       </form>
-      <p class="hint">بعد الإضافة، يسجّل الموظف حساباً بنفس البريد من صفحة الدخول ويختار كلمة مروره.</p>
+      <div class="alert alert-ok" id="staff-ok" hidden></div>
+      <div class="alert alert-err" id="staff-err" hidden></div>
+      <p class="hint">تكتب البريد وكلمة المرور، والنظام ينشئ الحساب فوراً. أعطِ الموظف البيانات وهو يدخل بها مباشرة.</p>
+      <div class="alert alert-warn" id="confirm-warn" hidden></div>
       <div class="staff-list" id="staff-list"></div>
     </section>
 

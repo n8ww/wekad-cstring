@@ -195,13 +195,54 @@
       }).join('');
   }
 
-  async function addStaff(email, staffRole) {
+  async function allowEmail(email, staffRole) {
     const response = await api('/rest/v1/allowed_staff', {
       method: 'POST',
       headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
       body: JSON.stringify({ email: email.trim().toLowerCase(), role: staffRole }),
     });
     return response.ok;
+  }
+
+  /**
+   * ينشئ حساب الموظف بكلمة مرور يحدّدها المدير.
+   * يُستدعى مسار التسجيل العام بمفتاح الموقع، والجلسة العائدة تُهمل عمداً
+   * حتى لا تحلّ محل جلسة المدير في المتصفح.
+   */
+  async function createStaffAccount(email, password) {
+    const response = await fetch(`${cfg.SUPABASE_URL}/auth/v1/signup`, {
+      method: 'POST',
+      headers: { apikey: cfg.SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const msg = data.msg || data.error_description || data.message || '';
+      if (/already/i.test(msg)) return { ok: true, existed: true };
+      if (/signup.*disabled|not allowed/i.test(msg)) {
+        return { ok: false, error: 'إنشاء الحسابات معطّل في إعدادات Supabase.' };
+      }
+      return { ok: false, error: msg || 'تعذّر إنشاء الحساب' };
+    }
+    return { ok: true, confirmed: Boolean(data.access_token), existed: false };
+  }
+
+  /** يحذّر المدير إذا كان مشروع Supabase ما زال يطلب تأكيد البريد. */
+  async function checkConfirmSetting() {
+    try {
+      const r = await fetch(`${cfg.SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: cfg.SUPABASE_KEY } });
+      const d = await r.json();
+      const box = $('#confirm-warn');
+      if (!box) return;
+      if (d.mailer_autoconfirm === false) {
+        box.innerHTML = 'تنبيه: مشروعك يطلب <b>تأكيد البريد</b>، فالحساب الجديد ما يقدر يدخل حتى يُفعَّل. '
+          + 'عطّل <b>Confirm email</b> من Supabase ← Authentication ← Sign In / Providers ← Email.';
+        box.hidden = false;
+      } else {
+        box.hidden = true;
+      }
+    } catch { /* تنبيه فقط */ }
   }
 
   /** تغيير صلاحية مستخدم: في قائمة المسموح لهم وفي ملفه إن كان مسجّلاً. */
@@ -818,6 +859,7 @@
       allVisits = visits || [];
       applyRange();
       renderStaff();
+      checkConfirmSetting();
       stampSync();
       startAutoRefresh();
     } catch (error) {
@@ -926,12 +968,51 @@
     });
 
     // إضافة موظف
+    $('#gen-pass').addEventListener('click', () => {
+      const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      const bytes = crypto.getRandomValues(new Uint8Array(10));
+      $('#staff-pass').value = [...bytes].map((b) => chars[b % chars.length]).join('');
+    });
+
     $('#staff-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const email = $('#staff-email').value.trim();
-      if (!email) return;
-      if (!(await addStaff(email, $('#staff-role').value))) { alert('تعذّرت الإضافة'); return; }
+      const email = $('#staff-email').value.trim().toLowerCase();
+      const password = $('#staff-pass').value;
+      const staffRole = $('#staff-role').value;
+      const ok = $('#staff-ok');
+      const err = $('#staff-err');
+      ok.hidden = true; err.hidden = true;
+
+      if (!email || password.length < 6) {
+        err.textContent = 'اكتب بريداً صحيحاً وكلمة مرور من ٦ أحرف فأكثر.';
+        err.hidden = false;
+        return;
+      }
+
+      // الصلاحية أولاً، حتى يلتقطها المشغّل لحظة إنشاء الحساب
+      if (!(await allowEmail(email, staffRole))) {
+        err.textContent = 'تعذّر حفظ الصلاحية.';
+        err.hidden = false;
+        return;
+      }
+
+      const result = await createStaffAccount(email, password);
+      if (!result.ok) {
+        err.textContent = result.error;
+        err.hidden = false;
+        renderStaff();
+        return;
+      }
+
+      ok.innerHTML = result.existed
+        ? `أُضيفت الصلاحية لـ <b dir="ltr">${esc(email)}</b>. الحساب موجود مسبقاً، فكلمة مروره القديمة هي المعتمدة.`
+        : `تم إنشاء الحساب ✓ أعطِ الموظف هذي البيانات:
+           <span class="cred-box"><code>${esc(email)}</code><code>${esc(password)}</code></span>
+           ${result.confirmed ? '' : '<br><b>ملاحظة:</b> الحساب ينتظر تفعيل البريد — عطّل Confirm email من Supabase ليدخل مباشرة.'}`;
+      ok.hidden = false;
+
       $('#staff-email').value = '';
+      $('#staff-pass').value = '';
       renderStaff();
     });
 
