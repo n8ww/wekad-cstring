@@ -573,7 +573,7 @@
       tally(scoped, (r) => (r.event_date
         ? [{ key: WEEKDAYS[new Date(`${r.event_date}T12:00:00`).getDay()], qty: 1 }] : []), 7), 'مناسبة');
 
-    // قمع الحجز — كل خطوة بنسبتها من الزوار
+    // مسار الحجز — كل خطوة بنسبتها من الزوار
     const funnel = funnelCounts(scopedVisits);
     const top = funnel[0]?.[1] || 0;
     $('#funnel').innerHTML = !top
