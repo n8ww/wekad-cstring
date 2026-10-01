@@ -279,6 +279,96 @@
   }
 
   // ==========================================================================
+  //  قائمة التجهيز
+  // ==========================================================================
+  let checklist = [];
+
+  /** نص البند بلغة المستخدم، مع الرجوع للعربية. */
+  function itemLabel(it) {
+    const lang = window.WekadI18n.lang;
+    return (lang === 'en' && it.label_en) || (lang === 'tl' && it.label_tl) || it.label_ar;
+  }
+
+  async function fetchChecklist() {
+    const r = await api('/rest/v1/checklist_items?select=*&active=is.true&order=sort_order.asc');
+    return r.ok ? r.json() : [];
+  }
+
+  async function renderItems() {
+    const r = await api('/rest/v1/checklist_items?select=*&order=sort_order.asc');
+    const rows = r.ok ? await r.json() : [];
+    const el = $('#item-list');
+    if (!el) return;
+
+    el.innerHTML = !rows.length
+      ? `<p class="empty">${t('noItems')}</p>`
+      : rows.map((it, i) => `
+        <div class="staff-row">
+          <span class="staff-mail">${esc(it.label_ar)}</span>
+          <span class="staff-state" dir="ltr">${esc(it.label_en || '—')} · ${esc(it.label_tl || '—')}</span>
+          <button class="btn btn-ghost btn-sm" data-move="${it.id}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>↑</button>
+          <button class="btn btn-ghost btn-sm" data-move="${it.id}" data-dir="1" ${i === rows.length - 1 ? 'disabled' : ''}>↓</button>
+          <button class="btn btn-ghost btn-sm" data-delitem="${it.id}" data-label="${esc(it.label_ar)}">${t('remove')}</button>
+        </div>`).join('');
+    checklist = rows.filter((x) => x.active);
+  }
+
+  async function addItem(ar, en, tl) {
+    const r = await api('/rest/v1/checklist_items', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ label_ar: ar, label_en: en, label_tl: tl, sort_order: Date.now() % 100000 }),
+    });
+    return r.ok;
+  }
+
+  async function moveItem(id, dir) {
+    const r = await api('/rest/v1/checklist_items?select=*&order=sort_order.asc');
+    const rows = r.ok ? await r.json() : [];
+    const i = rows.findIndex((x) => String(x.id) === String(id));
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= rows.length) return;
+    // بدّل ترتيب البندين
+    await Promise.all([
+      api(`/rest/v1/checklist_items?id=eq.${rows[i].id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ sort_order: rows[j].sort_order }) }),
+      api(`/rest/v1/checklist_items?id=eq.${rows[j].id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ sort_order: rows[i].sort_order }) }),
+    ]);
+  }
+
+  async function deleteItem(id) {
+    return (await api(`/rest/v1/checklist_items?id=eq.${id}`, { method: 'DELETE' })).ok;
+  }
+
+  // ---------- تعليم البنود لكل طلب ----------
+  let checksByOrder = new Map();
+
+  async function fetchChecks(orderIds) {
+    if (!orderIds.length) return new Map();
+    const list = orderIds.join(',');
+    const r = await api(`/rest/v1/order_checks?select=*&order_id=in.(${list})`);
+    const rows = r.ok ? await r.json() : [];
+    const map = new Map();
+    rows.forEach((row) => {
+      if (!map.has(row.order_id)) map.set(row.order_id, new Map());
+      map.get(row.order_id).set(row.item_id, row);
+    });
+    return map;
+  }
+
+  async function toggleCheck(orderId, itemId, checked) {
+    const r = await api('/rest/v1/order_checks', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({
+        order_id: Number(orderId), item_id: Number(itemId), checked,
+        checked_by: checked ? (session?.user?.email || '') : null,
+        checked_at: checked ? new Date().toISOString() : null,
+      }),
+    });
+    return r.ok;
+  }
+
+  // ==========================================================================
   //  الأيام المقفلة
   // ==========================================================================
   async function fetchBlocked() {
@@ -912,6 +1002,32 @@
 
             ${r.notes ? `<div class="job-note"><b>${t('customerNote')}</b> ${esc(r.notes)}</div>` : ''}
 
+            ${checklist.length ? (() => {
+              const marks = checksByOrder.get(r.id) || new Map();
+              const done = checklist.filter((it) => marks.get(it.id)?.checked).length;
+              const all = done === checklist.length;
+              return `
+              <details class="job-check${all ? ' is-done' : ''}" ${all ? '' : 'open'}>
+                <summary>
+                  <span>${t('checklist')}</span>
+                  <span class="chk-count">${all ? t('checkAllDone') : t('checkProgress', { a: done, b: checklist.length })}</span>
+                </summary>
+                <div class="chk-list">
+                  ${checklist.map((it) => {
+                    const row = marks.get(it.id);
+                    const on = Boolean(row?.checked);
+                    return `
+                    <label class="chk${on ? ' on' : ''}">
+                      <input type="checkbox" data-check-order="${r.id}" data-check-item="${it.id}" ${on ? 'checked' : ''}>
+                      <span class="chk-box"></span>
+                      <span class="chk-label">${esc(itemLabel(it))}</span>
+                      ${on && row?.checked_by ? `<span class="chk-by">${t('checkedBy', { who: esc(String(row.checked_by).split('@')[0]) })}</span>` : ''}
+                    </label>`;
+                  }).join('')}
+                </div>
+              </details>`;
+            })() : ''}
+
             <footer class="job-actions">
               ${maps ? `<a class="btn btn-solid btn-sm" href="${maps}" target="_blank" rel="noreferrer">${t('openMap')}</a>` : ''}
               ${r.phone ? `<a class="btn btn-ghost btn-sm" href="tel:${esc(r.phone)}" dir="ltr">${esc(r.phone)}</a>` : ''}
@@ -923,7 +1039,7 @@
   // ---------- التنقّل بين الصفحات ----------
   const PAGE_KEYS = {
     overview: 'pOverview', orders: 'pOrders', analytics: 'pAnalytics',
-    closed: 'pClosed', users: 'pUsers',
+    checklist: 'pChecklist', closed: 'pClosed', users: 'pUsers',
   };
 
   function currentPage() {
@@ -939,6 +1055,7 @@
     $('#side')?.classList.remove('open');
     if (name === 'users') renderStaff();
     if (name === 'closed') renderBlocked();
+    if (name === 'checklist') renderItems();
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
@@ -1011,6 +1128,8 @@
 
       if (!admin) {
         schedule = await fetchSchedule();
+        checklist = await fetchChecklist();
+        checksByOrder = await fetchChecks(schedule.map((r) => r.id));
         renderSchedule();
         stampSync();
         startAutoRefresh();
@@ -1021,6 +1140,8 @@
       if (rows === null) return;
       allOrders = rows;
       allVisits = visits || [];
+      checklist = await fetchChecklist();
+      checksByOrder = await fetchChecks(allOrders.slice(0, 200).map((r) => r.id));
       applyRange();
       fillCityFilter();
       checkConfirmSetting();
@@ -1284,6 +1405,58 @@
     });
 
     $('#sch-q').addEventListener('input', renderSchedule);
+
+    // تعليم بنود التجهيز
+    $('#sch-body').addEventListener('change', async (e) => {
+      const orderId = e.target.dataset?.checkOrder;
+      const itemId = e.target.dataset?.checkItem;
+      if (!orderId || !itemId) return;
+
+      const checked = e.target.checked;
+      if (!(await toggleCheck(orderId, itemId, checked))) {
+        e.target.checked = !checked;
+        alert(t('failSave'));
+        return;
+      }
+      if (!checksByOrder.has(Number(orderId))) checksByOrder.set(Number(orderId), new Map());
+      checksByOrder.get(Number(orderId)).set(Number(itemId), {
+        checked, checked_by: session?.user?.email || '',
+      });
+      // حدّث العدّاد دون إغلاق القسم
+      const card = e.target.closest('.job-check');
+      const marks = checksByOrder.get(Number(orderId));
+      const done = checklist.filter((it) => marks.get(it.id)?.checked).length;
+      const all = done === checklist.length;
+      card.classList.toggle('is-done', all);
+      $('.chk-count', card).textContent = all
+        ? t('checkAllDone') : t('checkProgress', { a: done, b: checklist.length });
+      e.target.closest('.chk').classList.toggle('on', checked);
+    });
+
+    // إدارة البنود
+    $('#item-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const err = $('#item-err');
+      err.hidden = true;
+      const ar = $('#item-ar').value.trim();
+      if (!ar) { err.textContent = t('badCreds'); err.hidden = false; return; }
+      if (!(await addItem(ar, $('#item-en').value.trim(), $('#item-tl').value.trim()))) {
+        err.textContent = t('failSave'); err.hidden = false; return;
+      }
+      $('#item-ar').value = ''; $('#item-en').value = ''; $('#item-tl').value = '';
+      renderItems();
+    });
+
+    $('#item-list').addEventListener('click', async (e) => {
+      const move = e.target.dataset?.move;
+      const del = e.target.dataset?.delitem;
+      if (move) { await moveItem(move, Number(e.target.dataset.dir)); renderItems(); return; }
+      if (del) {
+        if (!confirm(t('confirmDelItem', { label: e.target.dataset.label }))) return;
+        await deleteItem(del);
+        renderItems();
+      }
+    });
 
     $('#table-body').addEventListener('click', (e) => {
       const id = e.target.dataset?.toggle;

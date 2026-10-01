@@ -62,6 +62,7 @@
         <a href="#/overview"  class="nav-item" data-page="overview"><span class="ic">◧</span><span data-i18n="pOverview">نظرة عامة</span></a>
         <a href="#/orders"    class="nav-item" data-page="orders"><span class="ic">▤</span><span data-i18n="pOrders">الطلبات</span><span class="badge-n" id="nav-new"></span></a>
         <a href="#/analytics" class="nav-item" data-page="analytics"><span class="ic">◔</span><span data-i18n="pAnalytics">التحليلات</span></a>
+        <a href="#/checklist" class="nav-item" data-page="checklist"><span class="ic">☑</span><span data-i18n="pChecklist">قائمة التجهيز</span></a>
         <a href="#/closed"    class="nav-item" data-page="closed"><span class="ic">⊘</span><span data-i18n="pClosed">الأيام المقفلة</span></a>
         <a href="#/users"     class="nav-item" data-page="users"><span class="ic">◉</span><span data-i18n="pUsers">المستخدمون</span></a>
       </nav>
@@ -180,6 +181,38 @@
           <section class="panel"><div class="panel-head"><h2 data-i18n="chCitiesCount">المدن — عدد الطلبات</h2></div><div class="bars" id="top-cities"></div></section>
           <section class="panel"><div class="panel-head"><h2 data-i18n="chCitiesRev">المدن — الإيرادات</h2><span class="note">ر.س</span></div><div class="bars" id="rev-cities"></div></section>
           <section class="panel"><div class="panel-head"><h2 data-i18n="chWeekdays">أيام المناسبات</h2></div><div class="bars" id="top-weekdays"></div></section>
+        </div>
+      </section>
+
+      <!-- ===== قائمة التجهيز ===== -->
+      <section class="page" data-page="checklist">
+        <div class="panel">
+          <div class="panel-head">
+            <h2 data-i18n="addItem">إضافة بند</h2>
+            <span class="note" data-i18n="checklistHint">علّم ما أخذته معك قبل الخروج</span>
+          </div>
+          <form class="staff-add" id="item-form">
+            <label class="f grow">
+              <span data-i18n="itemAr">البند بالعربي</span>
+              <input type="text" id="item-ar" required>
+            </label>
+            <label class="f">
+              <span data-i18n="itemEn">بالإنجليزي</span>
+              <input type="text" id="item-en" dir="ltr">
+            </label>
+            <label class="f">
+              <span data-i18n="itemTl">بالفلبيني</span>
+              <input type="text" id="item-tl" dir="ltr">
+            </label>
+            <button type="submit" class="btn btn-solid" data-i18n="addItem">إضافة بند</button>
+          </form>
+          <div class="alert alert-err" id="item-err" hidden></div>
+          <p class="hint" data-i18n="itemsHint">العربي إلزامي</p>
+        </div>
+
+        <div class="panel" style="margin-block-start:1rem">
+          <div class="panel-head"><h2 data-i18n="currentItems">البنود الحالية</h2></div>
+          <div class="staff-list" id="item-list"></div>
         </div>
       </section>
 
