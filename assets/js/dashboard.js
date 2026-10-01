@@ -20,6 +20,13 @@
   };
   const statusName = (k) => t(STATUS_KEYS[k] || 'stNew');
   const WON = ['confirmed', 'done'];
+  const JOB_FLOW = [
+    { key: 'pending',   label: 'jsPending' },
+    { key: 'departed',  label: 'jsDeparted' },
+    { key: 'arrived',   label: 'jsArrived' },
+    { key: 'installed', label: 'jsInstalled' },
+    { key: 'finished',  label: 'jsFinished' },
+  ];
   const weekdayName = (index) => new Intl.DateTimeFormat(
     { ar: 'ar-SA-u-ca-gregory', en: 'en-GB', tl: 'fil-PH' }[window.WekadI18n.lang] || 'ar-SA-u-ca-gregory',
     { weekday: 'long' },
@@ -386,6 +393,14 @@
       map.get(row.order_id).set(row.item_id, row);
     });
     return map;
+  }
+
+  async function setJobStatus(orderId, status) {
+    const r = await api('/rest/v1/rpc/set_job_status', {
+      method: 'POST',
+      body: JSON.stringify({ p_order: Number(orderId), p_status: status }),
+    });
+    return r.ok;
   }
 
   async function saveCheck(orderId, itemId, patch) {
@@ -987,10 +1002,10 @@
           const days = Math.round((startOfDay(setup) - today) / 86400000);
           const maps = r.lat && r.lng ? `https://maps.google.com/?q=${r.lat},${r.lng}` : '';
           const items = Array.isArray(r.items) ? r.items : [];
+          const sweets = items.filter((i) => i.kind === 'dessert');
+          const addons = items.filter((i) => i.kind !== 'dessert');
 
-          // درجة الاستعجال تُقرأ من النص أولاً، واللون يدعمه
           const urgency = days === 0 ? 'today' : days === 1 ? 'tomorrow' : days <= 3 ? 'soon' : 'later';
-          // صيغة الجمع العربية: ٣–١٠ تأخذ "أيام"، وما فوقها يأخذ "يوم"
           const whenLabel = days === 0 ? t('today')
             : days === 1 ? t('tomorrow')
             : days === 2 ? t('inTwoDays')
@@ -998,6 +1013,16 @@
             : t('inDaysMany', { n: days });
 
           const sameDay = !r.setup_date || r.setup_date === r.event_date;
+          const marks = checksByOrder.get(r.id) || new Map();
+          const done = checklist.filter((it) => marks.get(it.id)?.checked).length;
+          const allDone = checklist.length > 0 && done === checklist.length;
+
+          const jobAt = r.job_status_at
+            ? t('jsByAt', {
+                who: esc(String(r.job_status_by || '').split('@')[0]),
+                when: dateTime(r.job_status_at),
+              })
+            : '';
 
           return `
           <article class="job job--${urgency}">
@@ -1023,37 +1048,25 @@
               </div>
             </div>
 
-            <div class="job-grid">
-              <div class="jf">
-                <span class="jf-label">${t('cityDistrict')}</span>
-                <span class="jf-value">${esc(r.city || '—')}${r.district ? ` — ${esc(r.district)}` : ''}</span>
+            <!-- حالة المهمة: الخطوة التالية بارزة، والمكتملة مؤشَّرة -->
+            <div class="job-flow">
+              <span class="flow-label">${t('jobStatus')}</span>
+              <div class="flow-steps">
+                ${JOB_FLOW.map((step, i) => {
+                  const atIndex = JOB_FLOW.findIndex((x) => x.key === (r.job_status || 'pending'));
+                  const state = i < atIndex ? 'past' : i === atIndex ? 'now' : 'next';
+                  return `<button type="button" class="flow-step is-${state}"
+                            data-job="${r.id}" data-status="${step.key}">${t(step.label)}</button>`;
+                }).join('')}
               </div>
-              <div class="jf">
-                <span class="jf-label">${t('venue')}</span>
-                <span class="jf-value">${esc(r.venue || '—')}</span>
-              </div>
-              <div class="jf">
-                <span class="jf-label">${t('serviceNeeded')}</span>
-                <span class="jf-value">${esc(r.package_name || '—')}</span>
-                <span class="jf-sub">${esc(r.included_baristas)} ${t('baristas')}${items.length ? ` · ${items.map((i) => `${esc(i.name)} ×${esc(i.qty)}`).join(' · ')}` : ''}</span>
-              </div>
-              <div class="jf">
-                <span class="jf-label">${t('customer')}</span>
-                <span class="jf-value">${esc(r.customer_name || '—')}</span>
-              </div>
+              ${jobAt ? `<span class="flow-by">${jobAt}</span>` : ''}
             </div>
 
-            ${r.notes ? `<div class="job-note"><b>${t('customerNote')}</b> ${esc(r.notes)}</div>` : ''}
-
-            ${checklist.length ? (() => {
-              const marks = checksByOrder.get(r.id) || new Map();
-              const done = checklist.filter((it) => marks.get(it.id)?.checked).length;
-              const all = done === checklist.length;
-              return `
-              <details class="job-check${all ? ' is-done' : ''}" ${all ? '' : 'open'}>
+            ${checklist.length ? `
+              <details class="job-check${allDone ? ' is-done' : ''}" ${allDone ? '' : 'open'}>
                 <summary>
                   <span>${t('checklist')}</span>
-                  <span class="chk-count">${all ? t('checkAllDone') : t('checkProgress', { a: done, b: checklist.length })}</span>
+                  <span class="chk-count">${allDone ? t('checkAllDone') : t('checkProgress', { a: done, b: checklist.length })}</span>
                 </summary>
                 <div class="chk-list">
                   ${checklist.map((it) => {
@@ -1078,8 +1091,47 @@
                     </div>`;
                   }).join('')}
                 </div>
-              </details>`;
-            })() : ''}
+              </details>` : ''}
+
+            <div class="job-grid">
+              <div class="jf">
+                <span class="jf-label">${t('cityDistrict')}</span>
+                <span class="jf-value">${esc(r.city || '—')}${r.district ? ` — ${esc(r.district)}` : ''}</span>
+              </div>
+              <div class="jf">
+                <span class="jf-label">${t('venue')}</span>
+                <span class="jf-value">${esc(r.venue || '—')}</span>
+              </div>
+              <div class="jf">
+                <span class="jf-label">${t('serviceNeeded')}</span>
+                <span class="jf-value">${esc(r.package_name || '—')}</span>
+                <span class="jf-sub">${esc(r.included_baristas)} ${t('baristas')}</span>
+              </div>
+              <div class="jf">
+                <span class="jf-label">${t('customer')}</span>
+                <span class="jf-value">${esc(r.customer_name || '—')}</span>
+              </div>
+            </div>
+
+            ${sweets.length ? `
+              <div class="job-items">
+                <span class="ji-title">${t('desserts')}</span>
+                <ul class="ji-list">
+                  ${sweets.map((i) => `<li><span>${esc(i.name)}</span>
+                    <b class="tab">${esc(i.qty)} ${esc(i.unit || '')}</b></li>`).join('')}
+                </ul>
+              </div>` : ''}
+
+            ${addons.length ? `
+              <div class="job-items">
+                <span class="ji-title">${t('addonsList')}</span>
+                <ul class="ji-list">
+                  ${addons.map((i) => `<li><span>${esc(i.name)}</span>
+                    <b class="tab">${esc(i.qty)} ${esc(i.unit || '')}</b></li>`).join('')}
+                </ul>
+              </div>` : ''}
+
+            ${r.notes ? `<div class="job-note"><b>${t('customerNote')}</b> ${esc(r.notes)}</div>` : ''}
 
             <footer class="job-actions">
               ${maps ? `<a class="btn btn-solid btn-sm" href="${maps}" target="_blank" rel="noreferrer">${t('openMap')}</a>` : ''}
@@ -1458,6 +1510,22 @@
     });
 
     $('#sch-q').addEventListener('input', renderSchedule);
+
+    // الطاقم يحدّد أين وصلت المهمة
+    $('#sch-body').addEventListener('click', async (e) => {
+      const orderId = e.target.dataset?.job;
+      if (!orderId) return;
+      const status = e.target.dataset.status;
+      if (!(await setJobStatus(orderId, status))) { alert(t('failSave')); return; }
+
+      const row = schedule.find((x) => String(x.id) === String(orderId));
+      if (row) {
+        row.job_status = status;
+        row.job_status_at = new Date().toISOString();
+        row.job_status_by = session?.user?.email || '';
+      }
+      renderSchedule();
+    });
 
     // تعليم البنود وإدخال الكميات
     $('#sch-body').addEventListener('change', async (e) => {
