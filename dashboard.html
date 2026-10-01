@@ -204,6 +204,22 @@
               <span data-i18n="itemTl">بالفلبيني</span>
               <input type="text" id="item-tl" dir="ltr">
             </label>
+            <label class="f">
+              <span data-i18n="unit">الوحدة</span>
+              <select id="item-unit">
+                <option value="" data-i18n="uNone">بدون كمية</option>
+                <option value="kg" data-i18n="uKg">كجم</option>
+                <option value="pcs" data-i18n="uPcs">حبة</option>
+                <option value="l" data-i18n="uL">لتر</option>
+                <option value="box" data-i18n="uBox">علبة</option>
+                <option value="carton" data-i18n="uCarton">كرتون</option>
+                <option value="bag" data-i18n="uBag">كيس</option>
+              </select>
+            </label>
+            <label class="f">
+              <span data-i18n="defaultQty">الكمية الافتراضية</span>
+              <input type="number" id="item-qty" step="0.5" min="0" dir="ltr">
+            </label>
             <button type="submit" class="btn btn-solid" data-i18n="addItem">إضافة بند</button>
           </form>
           <div class="alert alert-err" id="item-err" hidden></div>

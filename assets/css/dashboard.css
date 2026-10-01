@@ -694,3 +694,41 @@ tr.row-soon td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
   .chk { padding-block: 0.95rem; }   /* هدف لمس أكبر على الجوال */
   .chk-label { font-size: 1rem; }
 }
+
+/* ---------- كميات قائمة التجهيز ---------- */
+.chk { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.chk-tick { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0; cursor: pointer; }
+.chk-qty { display: inline-flex; align-items: center; gap: 0.4rem; flex: none; }
+.chk-qty input {
+  width: 84px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.chk-qty input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-ring); }
+.chk.on .chk-qty input { border-color: var(--brand); }
+.chk-unit { font-size: 0.85rem; color: var(--ink-2); min-width: 2.5rem; }
+
+/* صف تعديل البند */
+.item-edit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.7rem;
+  align-items: end;
+  border: 1px solid var(--brand);
+  background: var(--brand-wash);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+}
+.item-edit-actions { display: flex; gap: 0.5rem; }
+
+@media (max-width: 520px) {
+  .chk-tick { flex: 1 1 100%; }
+  .chk-qty { margin-inline-start: 2.9rem; }
+  .chk-qty input { width: 100px; padding-block: 0.6rem; }
+}

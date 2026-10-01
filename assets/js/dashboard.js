@@ -294,6 +294,16 @@
     return r.ok ? r.json() : [];
   }
 
+  const UNITS = ['', 'kg', 'pcs', 'l', 'box', 'carton', 'bag'];
+  const unitName = (u) => (u ? t('u' + u.charAt(0).toUpperCase() + u.slice(1)) : '');
+
+  function unitOptions(selected) {
+    return UNITS.map((u) =>
+      `<option value="${u}" ${u === (selected || '') ? 'selected' : ''}>${u ? unitName(u) : t('uNone')}</option>`).join('');
+  }
+
+  let editingItem = null;
+
   async function renderItems() {
     const r = await api('/rest/v1/checklist_items?select=*&order=sort_order.asc');
     const rows = r.ok ? await r.json() : [];
@@ -302,37 +312,60 @@
 
     el.innerHTML = !rows.length
       ? `<p class="empty">${t('noItems')}</p>`
-      : rows.map((it, i) => `
+      : rows.map((it, i) => {
+        if (String(editingItem) === String(it.id)) {
+          // صف قيد التعديل: كل الحقول قابلة للتغيير
+          return `
+          <form class="item-edit" data-save="${it.id}">
+            <label class="f"><span>${t('itemAr')}</span>
+              <input name="ar" value="${esc(it.label_ar)}" required></label>
+            <label class="f"><span>${t('itemEn')}</span>
+              <input name="en" dir="ltr" value="${esc(it.label_en || '')}"></label>
+            <label class="f"><span>${t('itemTl')}</span>
+              <input name="tl" dir="ltr" value="${esc(it.label_tl || '')}"></label>
+            <label class="f"><span>${t('unit')}</span>
+              <select name="unit">${unitOptions(it.unit)}</select></label>
+            <label class="f"><span>${t('defaultQty')}</span>
+              <input name="qty" type="number" step="0.5" min="0" dir="ltr"
+                     value="${it.default_qty ?? ''}"></label>
+            <div class="item-edit-actions">
+              <button type="submit" class="btn btn-solid btn-sm">${t('save')}</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-canceledit="1">${t('cancel')}</button>
+            </div>
+          </form>`;
+        }
+        const qtyBadge = it.unit
+          ? `<span class="pill pill-staff">${it.default_qty ?? ''} ${unitName(it.unit)}</span>` : '';
+        return `
         <div class="staff-row">
           <span class="staff-mail">${esc(it.label_ar)}</span>
           <span class="staff-state" dir="ltr">${esc(it.label_en || '—')} · ${esc(it.label_tl || '—')}</span>
+          ${qtyBadge}
           <button class="btn btn-ghost btn-sm" data-move="${it.id}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>↑</button>
           <button class="btn btn-ghost btn-sm" data-move="${it.id}" data-dir="1" ${i === rows.length - 1 ? 'disabled' : ''}>↓</button>
+          <button class="btn btn-ghost btn-sm" data-edititem="${it.id}">${t('edit')}</button>
           <button class="btn btn-ghost btn-sm" data-delitem="${it.id}" data-label="${esc(it.label_ar)}">${t('remove')}</button>
-        </div>`).join('');
+        </div>`;
+      }).join('');
     checklist = rows.filter((x) => x.active);
   }
 
-  async function addItem(ar, en, tl) {
+  async function addItem(fields) {
     const r = await api('/rest/v1/checklist_items', {
       method: 'POST',
       headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify({ label_ar: ar, label_en: en, label_tl: tl, sort_order: Date.now() % 100000 }),
+      body: JSON.stringify({ ...fields, sort_order: Date.now() % 100000 }),
     });
     return r.ok;
   }
 
-  async function moveItem(id, dir) {
-    const r = await api('/rest/v1/checklist_items?select=*&order=sort_order.asc');
-    const rows = r.ok ? await r.json() : [];
-    const i = rows.findIndex((x) => String(x.id) === String(id));
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= rows.length) return;
-    // بدّل ترتيب البندين
-    await Promise.all([
-      api(`/rest/v1/checklist_items?id=eq.${rows[i].id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ sort_order: rows[j].sort_order }) }),
-      api(`/rest/v1/checklist_items?id=eq.${rows[j].id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ sort_order: rows[i].sort_order }) }),
-    ]);
+  async function updateItem(id, fields) {
+    const r = await api(`/rest/v1/checklist_items?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify(fields),
+    });
+    return r.ok;
   }
 
   async function deleteItem(id) {
@@ -355,16 +388,26 @@
     return map;
   }
 
-  async function toggleCheck(orderId, itemId, checked) {
+  async function saveCheck(orderId, itemId, patch) {
+    const current = checksByOrder.get(Number(orderId))?.get(Number(itemId)) || {};
+    const next = {
+      order_id: Number(orderId),
+      item_id: Number(itemId),
+      checked: patch.checked ?? current.checked ?? false,
+      qty: patch.qty !== undefined ? patch.qty : (current.qty ?? null),
+    };
+    next.checked_by = next.checked ? (session?.user?.email || '') : null;
+    next.checked_at = next.checked ? new Date().toISOString() : null;
+
     const r = await api('/rest/v1/order_checks', {
       method: 'POST',
       headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify({
-        order_id: Number(orderId), item_id: Number(itemId), checked,
-        checked_by: checked ? (session?.user?.email || '') : null,
-        checked_at: checked ? new Date().toISOString() : null,
-      }),
+      body: JSON.stringify(next),
     });
+    if (r.ok) {
+      if (!checksByOrder.has(Number(orderId))) checksByOrder.set(Number(orderId), new Map());
+      checksByOrder.get(Number(orderId)).set(Number(itemId), next);
+    }
     return r.ok;
   }
 
@@ -1016,13 +1059,23 @@
                   ${checklist.map((it) => {
                     const row = marks.get(it.id);
                     const on = Boolean(row?.checked);
+                    const qtyVal = row?.qty ?? it.default_qty ?? '';
                     return `
-                    <label class="chk${on ? ' on' : ''}">
-                      <input type="checkbox" data-check-order="${r.id}" data-check-item="${it.id}" ${on ? 'checked' : ''}>
-                      <span class="chk-box"></span>
-                      <span class="chk-label">${esc(itemLabel(it))}</span>
+                    <div class="chk${on ? ' on' : ''}">
+                      <label class="chk-tick">
+                        <input type="checkbox" data-check-order="${r.id}" data-check-item="${it.id}" ${on ? 'checked' : ''}>
+                        <span class="chk-box"></span>
+                        <span class="chk-label">${esc(itemLabel(it))}</span>
+                      </label>
+                      ${it.unit ? `
+                        <span class="chk-qty">
+                          <input type="number" step="0.5" min="0" dir="ltr" value="${qtyVal}"
+                                 data-qty-order="${r.id}" data-qty-item="${it.id}"
+                                 aria-label="${t('takenQty')}">
+                          <span class="chk-unit">${unitName(it.unit)}</span>
+                        </span>` : ''}
                       ${on && row?.checked_by ? `<span class="chk-by">${t('checkedBy', { who: esc(String(row.checked_by).split('@')[0]) })}</span>` : ''}
-                    </label>`;
+                    </div>`;
                   }).join('')}
                 </div>
               </details>`;
@@ -1406,31 +1459,41 @@
 
     $('#sch-q').addEventListener('input', renderSchedule);
 
-    // تعليم بنود التجهيز
+    // تعليم البنود وإدخال الكميات
     $('#sch-body').addEventListener('change', async (e) => {
-      const orderId = e.target.dataset?.checkOrder;
-      const itemId = e.target.dataset?.checkItem;
-      if (!orderId || !itemId) return;
+      const tick = e.target.dataset?.checkOrder;
+      const qtyOrder = e.target.dataset?.qtyOrder;
 
+      if (qtyOrder) {
+        const value = e.target.value === '' ? null : Number(e.target.value);
+        await saveCheck(qtyOrder, e.target.dataset.qtyItem, { qty: value });
+        return;
+      }
+      if (!tick) return;
+
+      const itemId = e.target.dataset.checkItem;
       const checked = e.target.checked;
-      if (!(await toggleCheck(orderId, itemId, checked))) {
+
+      // لو للبند وحدة ولم تُدخَل كمية، احفظ الكمية الظاهرة معه
+      const row = e.target.closest('.chk');
+      const qtyInput = $('input[data-qty-item]', row);
+      const patch = { checked };
+      if (checked && qtyInput && qtyInput.value !== '') patch.qty = Number(qtyInput.value);
+
+      if (!(await saveCheck(tick, itemId, patch))) {
         e.target.checked = !checked;
         alert(t('failSave'));
         return;
       }
-      if (!checksByOrder.has(Number(orderId))) checksByOrder.set(Number(orderId), new Map());
-      checksByOrder.get(Number(orderId)).set(Number(itemId), {
-        checked, checked_by: session?.user?.email || '',
-      });
-      // حدّث العدّاد دون إغلاق القسم
+
       const card = e.target.closest('.job-check');
-      const marks = checksByOrder.get(Number(orderId));
+      const marks = checksByOrder.get(Number(tick));
       const done = checklist.filter((it) => marks.get(it.id)?.checked).length;
       const all = done === checklist.length;
       card.classList.toggle('is-done', all);
       $('.chk-count', card).textContent = all
         ? t('checkAllDone') : t('checkProgress', { a: done, b: checklist.length });
-      e.target.closest('.chk').classList.toggle('on', checked);
+      row.classList.toggle('on', checked);
     });
 
     // إدارة البنود
@@ -1440,22 +1503,49 @@
       err.hidden = true;
       const ar = $('#item-ar').value.trim();
       if (!ar) { err.textContent = t('badCreds'); err.hidden = false; return; }
-      if (!(await addItem(ar, $('#item-en').value.trim(), $('#item-tl').value.trim()))) {
-        err.textContent = t('failSave'); err.hidden = false; return;
-      }
-      $('#item-ar').value = ''; $('#item-en').value = ''; $('#item-tl').value = '';
+      const qty = $('#item-qty').value;
+      const ok = await addItem({
+        label_ar: ar,
+        label_en: $('#item-en').value.trim(),
+        label_tl: $('#item-tl').value.trim(),
+        unit: $('#item-unit').value,
+        default_qty: qty === '' ? null : Number(qty),
+      });
+      if (!ok) { err.textContent = t('failSave'); err.hidden = false; return; }
+      ['#item-ar', '#item-en', '#item-tl', '#item-qty'].forEach((sel) => { $(sel).value = ''; });
       renderItems();
     });
 
     $('#item-list').addEventListener('click', async (e) => {
       const move = e.target.dataset?.move;
       const del = e.target.dataset?.delitem;
+      const edit = e.target.dataset?.edititem;
+      if (e.target.dataset?.canceledit) { editingItem = null; renderItems(); return; }
+      if (edit) { editingItem = edit; renderItems(); return; }
       if (move) { await moveItem(move, Number(e.target.dataset.dir)); renderItems(); return; }
       if (del) {
         if (!confirm(t('confirmDelItem', { label: e.target.dataset.label }))) return;
         await deleteItem(del);
         renderItems();
       }
+    });
+
+    $('#item-list').addEventListener('submit', async (e) => {
+      const id = e.target.dataset?.save;
+      if (!id) return;
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const qty = f.get('qty');
+      const ok = await updateItem(id, {
+        label_ar: String(f.get('ar')).trim(),
+        label_en: String(f.get('en')).trim(),
+        label_tl: String(f.get('tl')).trim(),
+        unit: f.get('unit'),
+        default_qty: qty === '' ? null : Number(qty),
+      });
+      if (!ok) { alert(t('failSave')); return; }
+      editingItem = null;
+      renderItems();
     });
 
     $('#table-body').addEventListener('click', (e) => {
