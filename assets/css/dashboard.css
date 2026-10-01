@@ -638,3 +638,16 @@ tr.row-soon td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
 
 .pill-closed { background: #fcebe9; color: #a32a1e; }
 .staff-row.is-past { opacity: 0.5; }
+
+/* مبدّل اللغة */
+.lang-pick {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 0.42rem 0.7rem;
+  font-size: 0.82rem;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.lang-pick:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-ring); }
+.lang-row { display: flex; justify-content: center; margin-block-end: 1.2rem; }

@@ -10,22 +10,20 @@
   const $  = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
-  const STATUSES = {
-    new:       { ar: 'جديد',    color: 'var(--st-new)' },
-    contacted: { ar: 'تواصلنا', color: 'var(--st-contacted)' },
-    confirmed: { ar: 'مؤكّد',   color: 'var(--st-confirmed)' },
-    done:      { ar: 'منجز',    color: 'var(--st-done)' },
-    cancelled: { ar: 'ملغي',    color: 'var(--st-cancelled)' },
+  const STATUS_KEYS = {
+    new: 'stNew', contacted: 'stContacted', confirmed: 'stConfirmed',
+    done: 'stDone', cancelled: 'stCancelled',
   };
-  const STATUS_FILL = {
-    new:       'var(--ramp-1)',
-    contacted: 'var(--ramp-2)',
-    confirmed: 'var(--ramp-4)',
-    done:      'var(--st-done)',
-    cancelled: 'var(--st-cancelled)',
+  const STATUS_COLOR = {
+    new: 'var(--ramp-2)', contacted: 'var(--ramp-3)', confirmed: 'var(--brand)',
+    done: 'var(--st-done)', cancelled: 'var(--st-cancelled)',
   };
+  const statusName = (k) => t(STATUS_KEYS[k] || 'stNew');
   const WON = ['confirmed', 'done'];
-  const WEEKDAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+  const weekdayName = (index) => new Intl.DateTimeFormat(
+    { ar: 'ar-SA-u-ca-gregory', en: 'en-GB', tl: 'fil-PH' }[window.WekadI18n.lang] || 'ar-SA-u-ca-gregory',
+    { weekday: 'long' },
+  ).format(new Date(Date.UTC(2024, 0, 7 + index)));
 
   let session = null;
   let role = null;          // admin | staff
@@ -84,11 +82,11 @@
       const code = data.error_code || '';
       const msg = data.error_description || data.msg || '';
       if (code === 'email_not_confirmed' || /not confirmed/i.test(msg)) {
-        const e = new Error('حسابك موجود لكن ينتظر التفعيل. افتح بريدك واضغط رابط التفعيل، أو اطلب من المدير تعطيل التأكيد بالبريد.');
+        const e = new Error(t('notConfirmed'));
         e.pending = true;
         throw e;
       }
-      const e = new Error(/invalid login/i.test(msg) ? 'البريد أو كلمة المرور غير صحيحة.' : (msg || 'تعذّر تسجيل الدخول'));
+      const e = new Error(/invalid login/i.test(msg) ? t('badLogin') : (msg || t('loginFail')));
       e.raw = msg;
       throw e;
     }
@@ -97,7 +95,7 @@
 
   async function fetchOrders() {
     const response = await api('/rest/v1/orders?select=*&order=created_at.desc&limit=5000');
-    if (response.status === 401) { clearSession(); showLogin('انتهت الجلسة، سجّل دخولك مرة ثانية.'); return null; }
+    if (response.status === 401) { clearSession(); showLogin(t('sessionEnded')); return null; }
     if (!response.ok) throw new Error('تعذّر تحميل الطلبات');
     return response.json();
   }
@@ -111,9 +109,9 @@
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       const msg = data.msg || data.error_description || data.message || '';
-      if (/already/i.test(msg)) throw new Error('هذا البريد له حساب بالفعل — استخدم تسجيل الدخول.');
-      if (/password/i.test(msg)) throw new Error('كلمة المرور قصيرة — ٦ أحرف على الأقل.');
-      throw new Error(msg || 'تعذّر إنشاء الحساب');
+      if (/already/i.test(msg)) throw new Error(t('emailTaken'));
+      if (/password/i.test(msg)) throw new Error(t('shortPass'));
+      throw new Error(msg || t('createFail'));
     }
     return data;   // قد يحتوي جلسة مباشرة، أو لا شيء إن كان التأكيد بالبريد مفعّلاً
   }
@@ -127,6 +125,19 @@
     if (!response.ok) return null;
     const value = await response.json().catch(() => null);
     return typeof value === 'string' ? value : null;
+  }
+
+  async function saveLang(code) {
+    try { await api('/rest/v1/rpc/set_my_lang', { method: 'POST', body: JSON.stringify({ p_lang: code }) }); }
+    catch { /* الاختيار محفوظ محلياً على أي حال */ }
+  }
+
+  /** لغة الحساب من قاعدة البيانات، إن وُجدت. */
+  async function fetchProfileLang() {
+    const r = await api('/rest/v1/profiles?select=lang&limit=1');
+    if (!r.ok) return null;
+    const rows = await r.json().catch(() => []);
+    return rows[0]?.lang || null;
   }
 
   async function fetchRole() {
@@ -178,28 +189,28 @@
     const el = $('#staff-list');
     if (!el) return;
     el.innerHTML = !rows.length
-      ? '<p class="empty">لا يوجد مستخدمون بعد</p>'
+      ? `<p class="empty">${t('noResults')}</p>`
       : rows.map((r) => {
         const isMe = String(r.email).toLowerCase() === String(session?.user?.email || '').toLowerCase();
         return `
         <div class="staff-row">
-          <span class="staff-mail" dir="ltr">${esc(r.email)}${isMe ? ' <span class="me">(أنت)</span>' : ''}</span>
-          <select class="status-select role-select" data-email="${esc(r.email)}" ${isMe ? 'disabled title="لا يمكنك تغيير صلاحيتك بنفسك"' : ''}>
-            <option value="staff" ${r.role === 'staff' ? 'selected' : ''}>موظف</option>
-            <option value="admin" ${r.role === 'admin' ? 'selected' : ''}>مدير</option>
+          <span class="staff-mail" dir="ltr">${esc(r.email)}${isMe ? ` <span class="me">${t('you')}</span>` : ''}</span>
+          <select class="status-select role-select" data-email="${esc(r.email)}" ${isMe ? `disabled title="${t('cantChangeSelf')}"` : ''}>
+            <option value="staff" ${r.role === 'staff' ? 'selected' : ''}>${t('staff')}</option>
+            <option value="admin" ${r.role === 'admin' ? 'selected' : ''}>${t('admin')}</option>
           </select>
           <span class="staff-state ${r.registered ? 'ok' : ''}">
-            ${r.registered ? 'سجّل دخوله' : 'لم يسجّل بعد'}</span>
-          <button class="btn btn-ghost btn-sm" data-remove="${esc(r.email)}" ${isMe ? 'disabled' : ''}>حذف</button>
+            ${r.registered ? t('registered') : t('notRegistered')}</span>
+          <button class="btn btn-ghost btn-sm" data-remove="${esc(r.email)}" ${isMe ? 'disabled' : ''}>${t('remove')}</button>
         </div>`;
       }).join('');
   }
 
-  async function allowEmail(email, staffRole) {
+  async function allowEmail(email, staffRole, staffLang) {
     const response = await api('/rest/v1/allowed_staff', {
       method: 'POST',
       headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify({ email: email.trim().toLowerCase(), role: staffRole }),
+      body: JSON.stringify({ email: email.trim().toLowerCase(), role: staffRole, lang: staffLang }),
     });
     return response.ok;
   }
@@ -221,9 +232,9 @@
       const msg = data.msg || data.error_description || data.message || '';
       if (/already/i.test(msg)) return { ok: true, existed: true };
       if (/signup.*disabled|not allowed/i.test(msg)) {
-        return { ok: false, error: 'إنشاء الحسابات معطّل في إعدادات Supabase.' };
+        return { ok: false, error: t('signupOff') };
       }
-      return { ok: false, error: msg || 'تعذّر إنشاء الحساب' };
+      return { ok: false, error: msg || t('createFail') };
     }
     return { ok: true, confirmed: Boolean(data.access_token), existed: false };
   }
@@ -236,8 +247,7 @@
       const box = $('#confirm-warn');
       if (!box) return;
       if (d.mailer_autoconfirm === false) {
-        box.innerHTML = 'تنبيه: مشروعك يطلب <b>تأكيد البريد</b>، فالحساب الجديد ما يقدر يدخل حتى يُفعَّل. '
-          + 'عطّل <b>Confirm email</b> من Supabase ← Authentication ← Sign In / Providers ← Email.';
+        box.innerHTML = t('confirmWarn');
         box.hidden = false;
       } else {
         box.hidden = true;
@@ -307,18 +317,18 @@
     const today = new Date().toISOString().slice(0, 10);
     const upcoming = rows.filter((r) => r.day >= today);
     $('#block-count').textContent = upcoming.length
-      ? `${upcoming.length} يوم قادم مقفل` : 'لا توجد أيام مقفلة';
+      ? t('closedCount', { n: upcoming.length }) : t('noClosed');
 
     list.innerHTML = !rows.length
-      ? '<p class="empty">ما فيه أيام مقفلة — كل المواعيد متاحة</p>'
+      ? `<p class="empty">${t('noClosedDays')}</p>`
       : rows.map((r) => {
           const past = r.day < today;
           return `
           <div class="staff-row${past ? ' is-past' : ''}">
             <span class="staff-mail tab">${esc(r.day)}</span>
             <span class="staff-state">${esc(r.reason || '—')}</span>
-            ${past ? '<span class="pill pill-staff">مضى</span>' : '<span class="pill pill-closed">مقفل</span>'}
-            <button class="btn btn-ghost btn-sm" data-unblock="${esc(r.day)}">فتح</button>
+            ${past ? `<span class="pill pill-staff">${t('pastPill')}</span>` : `<span class="pill pill-closed">${t('closedPill')}</span>`}
+            <button class="btn btn-ghost btn-sm" data-unblock="${esc(r.day)}">${t('openDay')}</button>
           </div>`;
         }).join('');
   }
@@ -405,14 +415,14 @@
   /** كم جلسة وصلت كل خطوة من خطوات الحجز. */
   function funnelCounts(rows) {
     const stepOrder = [
-      ['الزوار',            (v) => v.event === 'page_view'],
-      ['بدأ الحجز',         (v) => v.event === 'begin_checkout'],
-      ['اختار الحجم',       (v) => v.event === 'booking_step' && v.step === 'size'],
-      ['الحلى والإضافات',   (v) => v.event === 'booking_step' && v.step === 'items'],
-      ['الموعد والموقع',    (v) => v.event === 'booking_step' && v.step === 'when'],
-      ['بياناته',           (v) => v.event === 'booking_step' && v.step === 'client'],
-      ['المراجعة',          (v) => v.event === 'booking_step' && v.step === 'review'],
-      ['أتمّ الطلب',        (v) => v.event === 'purchase'],
+      [t('fVisitors'), (v) => v.event === 'page_view'],
+      [t('fStarted'),  (v) => v.event === 'begin_checkout'],
+      [t('fSize'),     (v) => v.event === 'booking_step' && v.step === 'size'],
+      [t('fItems'),    (v) => v.event === 'booking_step' && v.step === 'items'],
+      [t('fWhen'),     (v) => v.event === 'booking_step' && v.step === 'when'],
+      [t('fClient'),   (v) => v.event === 'booking_step' && v.step === 'client'],
+      [t('fReview'),   (v) => v.event === 'booking_step' && v.step === 'review'],
+      [t('fDone'),     (v) => v.event === 'purchase'],
     ];
     return stepOrder.map(([label, test]) => [
       label,
@@ -494,35 +504,35 @@
     const prev = summarise(previousWindow(rangeDays));
 
     $('#kpis-money').innerHTML = [
-      kpi('الإيرادات المؤكّدة', n0(s.revenue), 'ر.س',
-        deltaHtml(s.revenue, prev.revenue) || `من ${n0(s.wonCount)} طلب مؤكّد`, true),
-      kpi('إجمالي الطلبات', n0(s.count), '',
-        deltaHtml(s.count, prev.count) || 'في هذه الفترة'),
-      kpi('متوسط قيمة الطلب', n0(s.avg), 'ر.س', 'للطلبات المؤكّدة'),
-      kpi('نسبة التحويل', `${s.conversion.toFixed(0)}%`, '', 'من طلب إلى مؤكّد'),
-      kpi('قيمة قيد الانتظار', n0(s.pipeline), 'ر.س', `${n0(s.newCount)} طلب جديد`),
-      kpi('أكبر طلب', n0(s.biggest), 'ر.س', 'أعلى قيمة مسجّلة'),
+      kpi(t('kRevenue'), n0(s.revenue), t('sar'),
+        deltaHtml(s.revenue, prev.revenue) || t('sFromConfirmed', { n: n0(s.wonCount) }), true),
+      kpi(t('kOrders'), n0(s.count), '',
+        deltaHtml(s.count, prev.count) || t('sThisPeriod')),
+      kpi(t('kAvg'), n0(s.avg), t('sar'), t('sForConfirmed')),
+      kpi(t('kConv'), `${s.conversion.toFixed(0)}%`, '', t('sOrderToConfirm')),
+      kpi(t('kPipeline'), n0(s.pipeline), t('sar'), t('sNewOrders', { n: n0(s.newCount) })),
+      kpi(t('kBiggest'), n0(s.biggest), t('sar'), t('sHighest')),
     ].join('');
 
-    const t = summariseTraffic(scopedVisits);
+    const tr = summariseTraffic(scopedVisits);
     $('#kpis-traffic').innerHTML = [
-      kpi('الزوار', n0(t.visitors), '', `${n0(t.sessions)} جلسة`),
-      kpi('مشاهدات الصفحة', n0(t.views), '', `${t.perSession.toFixed(1)} صفحة لكل جلسة`),
-      kpi('بدأوا الحجز', n0(t.started), '', `${t.startRate.toFixed(0)}% من الجلسات`),
-      kpi('أتمّوا الطلب', n0(t.finished), '', `${t.finishRate.toFixed(0)}% ممن بدأ`),
-      kpi('زائر ← طلب', `${t.overall.toFixed(1)}%`, '', 'معدل التحويل الكلي'),
-      kpi('متوسط الزوار يومياً', n0(dailyAvgVisitors()), '', 'في هذه الفترة'),
+      kpi(t('kVisitors'), n0(tr.visitors), '', t('sSessions', { n: n0(tr.sessions) })),
+      kpi(t('kViews'), n0(tr.views), '', t('sPerSession', { n: tr.perSession.toFixed(1) })),
+      kpi(t('kStarted'), n0(tr.started), '', t('sOfSessions', { n: tr.startRate.toFixed(0) })),
+      kpi(t('kFinished'), n0(tr.finished), '', t('sOfStarted', { n: tr.finishRate.toFixed(0) })),
+      kpi(t('kV2O'), `${tr.overall.toFixed(1)}%`, '', t('sOverallConv')),
+      kpi(t('kAvgVisitors'), n0(dailyAvgVisitors()), '', t('sThisPeriod')),
     ].join('');
 
     $('#kpis-ops').innerHTML = [
-      kpi('أكواب مباعة', n0(s.cups), 'كوب', 'إجمالي الباقات × الأيام'),
-      kpi('مبيعات الحلى', n0(s.sweets), 'ر.س', `${s.sweetRate.toFixed(0)}% من الطلبات فيها حلى`),
-      kpi('مبيعات الإضافات', n0(s.addons), 'ر.س', 'باريستا إضافية وطباعة'),
-      kpi('باريستا مشمولة', n0(s.baristas), '', 'مجاناً ضمن الطلبات'),
-      kpi('متوسط مدة الخدمة', s.avgDays.toFixed(1), 'يوم', 'لكل طلب'),
-      kpi('متوسط المهلة', Math.round(s.avgLead), 'يوم', 'بين الطلب والمناسبة'),
-      kpi('مناسبات قادمة', n0(s.upcoming), '', `خلال ٣٠ يوم · ${n0(s.upcomingValue)} ر.س`),
-      kpi('عملاء الشركات', `${s.companyRate.toFixed(0)}%`, '', 'من إجمالي الطلبات'),
+      kpi(t('kCups'), n0(s.cups), '', t('sPkgTimesDays')),
+      kpi(t('kSweets'), n0(s.sweets), t('sar'), t('sSweetRate', { n: s.sweetRate.toFixed(0) })),
+      kpi(t('kAddons'), n0(s.addons), t('sar'), t('sExtraBarista')),
+      kpi(t('kBaristas'), n0(s.baristas), '', t('sFreeWithOrders')),
+      kpi(t('kAvgDays'), s.avgDays.toFixed(1), t('day'), t('sPerOrder')),
+      kpi(t('kLead'), Math.round(s.avgLead), t('day'), t('sBetweenOrderEvent')),
+      kpi(t('kUpcoming'), n0(s.upcoming), '', t('sWithin30', { v: n0(s.upcomingValue) })),
+      kpi(t('kCompanies'), `${s.companyRate.toFixed(0)}%`, '', t('sOfAllOrders')),
     ].join('');
   }
 
@@ -534,7 +544,7 @@
   }
 
   function renderBars(el, entries, unit, fmt = n0) {
-    if (!entries.length) { el.innerHTML = '<p class="empty">لا توجد بيانات بعد</p>'; return; }
+    if (!entries.length) { el.innerHTML = `<p class="empty">${t('noData')}</p>`; return; }
     const max = entries[0][1] || 1;
     el.innerHTML = entries.map(([name, qty]) => `
       <div class="bar-row" title="${esc(name)}: ${fmt(qty)} ${unit}">
@@ -570,13 +580,13 @@
     const totalVisitors = visitorBuckets.reduce((a, c) => a + c, 0);
     const totalOrders = orderBuckets.reduce((sum, b) => sum + b.count, 0);
     $('#daily-note').innerHTML =
-      `<span class="lg"><i style="background:var(--ramp-1)"></i>زوار <b class="num">${n0(totalVisitors)}</b></span>
-       <span class="lg"><i style="background:var(--ramp-4)"></i>طلبات <b class="num">${n0(totalOrders)}</b></span>`;
+      `<span class="lg"><i style="background:var(--ramp-1)"></i>${t('visitorsLegend')} <b class="num">${n0(totalVisitors)}</b></span>
+       <span class="lg"><i style="background:var(--ramp-4)"></i>${t('ordersLegend')} <b class="num">${n0(totalOrders)}</b></span>`;
   }
 
   function renderMonthly() {
     const months = byMonth(scoped);
-    if (!months.length) { $('#chart-monthly').innerHTML = '<p class="empty">لا توجد بيانات بعد</p>'; return; }
+    if (!months.length) { $('#chart-monthly').innerHTML = `<p class="empty">${t('noData')}</p>`; return; }
     const max = Math.max(1, ...months.map(([, v]) => v.revenue));
     $('#chart-monthly').innerHTML = months.map(([key, v]) => `
       <div class="col" title="${key} · ${n0(v.revenue)} ر.س · ${v.count} طلب">
@@ -586,13 +596,13 @@
   }
 
   function renderStatusBars() {
-    const counts = Object.entries(STATUSES)
-      .map(([k, v]) => ({ key: k, ar: v.ar, n: scoped.filter((r) => r.status === k).length }))
+    const counts = Object.entries(STATUS_KEYS)
+      .map(([k]) => ({ key: k, ar: statusName(k), n: scoped.filter((r) => r.status === k).length }))
       .filter((c) => c.n > 0)
       .sort((a, b) => b.n - a.n);
 
     const el = $('#status-bars');
-    if (!counts.length) { el.innerHTML = '<p class="empty">لا توجد بيانات</p>'; return; }
+    if (!counts.length) { el.innerHTML = `<p class="empty">${t('noData')}</p>`; return; }
     const max = counts[0].n;
     const total = counts.reduce((sum, c) => sum + c.n, 0);
 
@@ -601,7 +611,7 @@
         <span class="name">${c.ar}</span>
         <span class="val num">${c.n} · ${Math.round((c.n / total) * 100)}%</span>
         <span class="bar-track"><span class="bar-fill"
-          style="width:${(c.n / max) * 100}%;background:${STATUS_FILL[c.key] || 'var(--ramp-3)'}"></span></span>
+          style="width:${(c.n / max) * 100}%;background:${STATUS_COLOR[c.key] || 'var(--ramp-3)'}"></span></span>
       </div>`).join('');
   }
 
@@ -611,28 +621,28 @@
     renderStatusBars();
 
     renderBars($('#top-packages'),
-      tally(scoped, (r) => (r.package_name ? [{ key: r.package_name, qty: 1 }] : [])), 'طلب');
+      tally(scoped, (r) => (r.package_name ? [{ key: r.package_name, qty: 1 }] : [])), '');
 
     renderBars($('#top-desserts'),
       tally(scoped, (r) => itemsOf(r).filter((i) => i.kind === 'dessert')
         .map((i) => ({ key: i.name, qty: i.qty }))), '');
 
     renderBars($('#top-cities'),
-      tally(scoped, (r) => (r.city ? [{ key: r.city, qty: 1 }] : [])), 'طلب');
+      tally(scoped, (r) => (r.city ? [{ key: r.city, qty: 1 }] : [])), '');
 
     renderBars($('#rev-cities'),
       tally(scoped.filter((r) => WON.includes(r.status)),
-        (r) => (r.city ? [{ key: r.city, qty: Number(r.total || 0) }] : [])), 'ر.س');
+        (r) => (r.city ? [{ key: r.city, qty: Number(r.total || 0) }] : [])), t('sar'));
 
     renderBars($('#top-weekdays'),
       tally(scoped, (r) => (r.event_date
-        ? [{ key: WEEKDAYS[new Date(`${r.event_date}T12:00:00`).getDay()], qty: 1 }] : []), 7), 'مناسبة');
+        ? [{ key: weekdayName(new Date(`${r.event_date}T12:00:00`).getDay()), qty: 1 }] : []), 7), '');
 
     // مسار الحجز — كل خطوة بنسبتها من الزوار
     const funnel = funnelCounts(scopedVisits);
     const top = funnel[0]?.[1] || 0;
     $('#funnel').innerHTML = !top
-      ? '<p class="empty">لا توجد بيانات زوار بعد</p>'
+      ? `<p class="empty">${t('noData')}</p>`
       : funnel.map(([label, n], i) => `
           <div class="bar-row" title="${label}: ${n} جلسة">
             <span class="name">${label}</span>
@@ -643,9 +653,9 @@
 
     const views = scopedVisits.filter((v) => v.event === 'page_view');
     renderBars($('#sources'),
-      tally(views, (v) => (v.source ? [{ key: v.source, qty: 1 }] : [])), 'زيارة');
+      tally(views, (v) => (v.source ? [{ key: v.source, qty: 1 }] : [])), '');
     renderBars($('#devices'),
-      tally(views, (v) => (v.device ? [{ key: v.device === 'mobile' ? 'جوال' : 'كمبيوتر', qty: 1 }] : [])), 'زيارة');
+      tally(views, (v) => (v.device ? [{ key: v.device === 'mobile' ? 'Mobile' : 'Desktop', qty: 1 }] : [])), '');
 
     renderBars($('#top-addons'),
       tally(scoped, (r) => itemsOf(r).filter((i) => i.kind === 'addon')
@@ -678,7 +688,7 @@
 
   function renderTable() {
     const rows = visibleRows();
-    $('#count').textContent = `${rows.length} من ${scoped.length}`;
+    $('#count').textContent = t('ofTotal', { a: rows.length, b: scoped.length });
     const newCount = scoped.filter((r) => r.status === 'new').length;
     const badge = $('#nav-new');
     if (badge) { badge.textContent = newCount || ''; badge.hidden = !newCount; }
@@ -690,55 +700,56 @@
     });
 
     if (!rows.length) {
-      $('#table-body').innerHTML = '<tr><td colspan="8"><p class="empty">لا توجد طلبات مطابقة</p></td></tr>';
+      $('#table-body').innerHTML = `<tr><td colspan="8"><p class="empty">${t('noResults')}</p></td></tr>`;
       return;
     }
 
     $('#table-body').innerHTML = rows.map((r) => {
-      const st = STATUSES[r.status] || STATUSES.new;
+      const stColor = STATUS_COLOR[r.status] || STATUS_COLOR.new;
+      const stName = statusName(r.status);
       const maps = r.lat && r.lng ? `https://maps.google.com/?q=${r.lat},${r.lng}` : '';
       const items = itemsOf(r);
       return `
       <tr class="row-main">
         <td><span class="ref">${esc(r.ref)}</span><div class="muted">${dateTime(r.created_at)}</div></td>
         <td>${esc(r.customer_name || '—')}
-            <div class="muted">${r.client_type === 'company' ? esc(r.company || 'شركة') : 'أفراد'}</div></td>
+            <div class="muted">${r.client_type === 'company' ? esc(r.company || t('company')) : t('individual')}</div></td>
         <td><a href="tel:${esc(r.phone)}" dir="ltr">${esc(r.phone || '—')}</a></td>
         <td>${esc(r.package_name || '—')}<div class="muted">${esc(r.days)} يوم</div></td>
         <td class="tab"><b>${dateOnly(r.setup_date || r.event_date)}</b> · ${esc(r.setup_time || '—')}
-            <div class="muted">العمل ${dateOnly(r.event_date)} · ${esc(r.event_time || '')}</div></td>
+            <div class="muted">${t('work')} ${dateOnly(r.event_date)} · ${esc(r.event_time || '')}</div></td>
         <td>${esc(r.city || '—')}<div class="muted">${esc(r.district || '')}${maps ? ` · <a href="${maps}" target="_blank" rel="noopener">خريطة</a>` : ''}</div></td>
         <td class="tab"><b>${n2(r.total)}</b></td>
         <td>
-          <span class="pill" style="background:color-mix(in srgb, ${st.color} 14%, transparent);color:${st.color}">
-            <i style="background:${st.color}"></i>${st.ar}</span>
+          <span class="pill" style="background:color-mix(in srgb, ${stColor} 14%, transparent);color:${stColor}">
+            <i style="background:${stColor}"></i>${stName}</span>
           <div style="margin-block-start:.4rem;display:flex;gap:.4rem;align-items:center">
             <select class="status-select" data-id="${r.id}">
-              ${Object.entries(STATUSES).map(([k, v]) =>
-                `<option value="${k}" ${r.status === k ? 'selected' : ''}>${v.ar}</option>`).join('')}
+              ${Object.entries(STATUS_KEYS).map(([k]) =>
+                `<option value="${k}" ${r.status === k ? 'selected' : ''}>${statusName(k)}</option>`).join('')}
             </select>
-            <button class="detail-toggle" data-toggle="${r.id}">تفاصيل</button>
+            <button class="detail-toggle" data-toggle="${r.id}">${t('details')}</button>
           </div>
           <div class="row-actions">
             ${r.status !== 'cancelled'
-              ? `<button class="btn btn-danger btn-sm" data-cancel="${r.id}" data-ref="${esc(r.ref)}">إلغاء الطلب</button>`
+              ? `<button class="btn btn-danger btn-sm" data-cancel="${r.id}" data-ref="${esc(r.ref)}">${t('cancelOrder')}</button>`
               : ''}
-            <button class="btn btn-ghost btn-sm" data-delete="${r.id}" data-ref="${esc(r.ref)}">حذف نهائي</button>
+            <button class="btn btn-ghost btn-sm" data-delete="${r.id}" data-ref="${esc(r.ref)}">${t('deleteOrder')}</button>
           </div>
         </td>
       </tr>
       <tr class="row-detail" data-detail="${r.id}" hidden>
         <td colspan="8">
           <dl class="detail-grid">
-            <div><dt>التركيب</dt><dd class="tab">${dateOnly(r.setup_date)} · ${esc(r.setup_time || '—')}</dd></div>
-            <div><dt>بدء العمل</dt><dd class="tab">${dateOnly(r.event_date)} · ${esc(r.event_time || '—')}</dd></div>
-            <div><dt>الموقع</dt><dd>${esc(r.venue || '—')}</dd></div>
-            <div><dt>الحي</dt><dd>${esc(r.district || '—')}</dd></div>
-            <div><dt>باريستا مشمولة</dt><dd class="num">${esc(r.included_baristas)}</dd></div>
-            <div><dt>الإضافات</dt><dd class="num">${n2(r.addons_total)} ر.س</dd></div>
-            <div><dt>الحلى</dt><dd class="num">${n2(r.desserts_total)} ر.س</dd></div>
-            ${r.vat ? `<div><dt>الرقم الضريبي</dt><dd class="num">${esc(r.vat)}</dd></div>` : ''}
-            ${r.notes ? `<div style="grid-column:1/-1"><dt>ملاحظات العميل</dt><dd>${esc(r.notes)}</dd></div>` : ''}
+            <div><dt>${t('dSetup')}</dt><dd class="tab">${dateOnly(r.setup_date)} · ${esc(r.setup_time || '—')}</dd></div>
+            <div><dt>${t('dWork')}</dt><dd class="tab">${dateOnly(r.event_date)} · ${esc(r.event_time || '—')}</dd></div>
+            <div><dt>${t('dVenue')}</dt><dd>${esc(r.venue || '—')}</dd></div>
+            <div><dt>${t('dDistrict')}</dt><dd>${esc(r.district || '—')}</dd></div>
+            <div><dt>${t('dBaristas')}</dt><dd class="num">${esc(r.included_baristas)}</dd></div>
+            <div><dt>${t('dAddons')}</dt><dd class="num">${n2(r.addons_total)} ر.س</dd></div>
+            <div><dt>${t('dSweets')}</dt><dd class="num">${n2(r.desserts_total)} ر.س</dd></div>
+            ${r.vat ? `<div><dt>${t('dVat')}</dt><dd class="num">${esc(r.vat)}</dd></div>` : ''}
+            ${r.notes ? `<div style="grid-column:1/-1"><dt>${t('dNotes')}</dt><dd>${esc(r.notes)}</dd></div>` : ''}
           </dl>
           ${items.length ? `<ul class="items-list">${items.map((i) => `
             <li><span>${esc(i.name)} — <span class="num">${esc(i.qty)}</span> ${esc(i.unit)}</span>
@@ -766,7 +777,7 @@
     const lines = rows.map((r) => [
       r.ref,
       String(r.created_at || '').slice(0, 19).replace('T', ' '),
-      (STATUSES[r.status] || {}).ar || r.status,
+      statusName(r.status),
       r.customer_name,
       r.client_type === 'company' ? 'شركة' : 'أفراد',
       r.company, r.vat, r.phone,
@@ -828,16 +839,16 @@
     }).length;
 
     $('#sch-kpis').innerHTML = [
-      kpi('تركيبات قادمة', n0(rows.length), '', 'من اليوم فما بعد'),
-      kpi('خلال ٧ أيام', n0(next7), '', 'استعد لها'),
-      kpi('أقرب تركيب', rows[0] ? dateOnly(keyOf(rows[0])) : '—', '',
-        rows[0] ? `${esc(rows[0].city)} · الوصول ${esc(rows[0].setup_time || '')}` : ''),
+      kpi(t('kSetups'), n0(rows.length), '', t('sFromToday')),
+      kpi(t('kWithin7'), n0(next7), '', t('sGetReady')),
+      kpi(t('kNextSetup'), rows[0] ? dateOnly(keyOf(rows[0])) : '—', '',
+        rows[0] ? `${esc(rows[0].city)} · ${t('sArrival', { t: esc(rows[0].setup_time || '') })}` : ''),
     ].join('');
 
-    $('#sch-count').textContent = `${shown.length} مناسبة`;
+    $('#sch-count').textContent = t('eventsCount', { n: shown.length });
 
     $('#sch-body').innerHTML = !shown.length
-      ? '<p class="empty">لا توجد تركيبات قادمة</p>'
+      ? `<p class="empty">${t('noUpcoming')}</p>`
       : shown.map((r) => {
           const setup = r.setup_date || r.event_date;
           const days = Math.round((startOfDay(setup) - today) / 86400000);
@@ -847,11 +858,11 @@
           // درجة الاستعجال تُقرأ من النص أولاً، واللون يدعمه
           const urgency = days === 0 ? 'today' : days === 1 ? 'tomorrow' : days <= 3 ? 'soon' : 'later';
           // صيغة الجمع العربية: ٣–١٠ تأخذ "أيام"، وما فوقها يأخذ "يوم"
-          const whenLabel = days === 0 ? 'اليوم'
-            : days === 1 ? 'غداً'
-            : days === 2 ? 'بعد يومين'
-            : days <= 10 ? `بعد ${days} أيام`
-            : `بعد ${days} يوم`;
+          const whenLabel = days === 0 ? t('today')
+            : days === 1 ? t('tomorrow')
+            : days === 2 ? t('inTwoDays')
+            : days <= 10 ? t('inDaysFew', { n: days })
+            : t('inDaysMany', { n: days });
 
           const sameDay = !r.setup_date || r.setup_date === r.event_date;
 
@@ -865,44 +876,44 @@
 
             <div class="job-times">
               <div class="jt jt--main">
-                <span class="jt-label">وقت الوصول للتركيب</span>
+                <span class="jt-label">${t('arrivalTime')}</span>
                 <span class="jt-value tab">${esc(r.setup_time || '—')}</span>
               </div>
               <div class="jt">
-                <span class="jt-label">بدء تقديم الضيافة</span>
+                <span class="jt-label">${t('serviceStart')}</span>
                 <span class="jt-value tab">${esc(r.event_time || '—')}</span>
                 ${sameDay ? '' : `<span class="jt-sub tab">${dateOnly(r.event_date)}</span>`}
               </div>
               <div class="jt">
-                <span class="jt-label">مدة الخدمة</span>
-                <span class="jt-value tab">${esc(r.days)} <small>يوم</small></span>
+                <span class="jt-label">${t('serviceDays')}</span>
+                <span class="jt-value tab">${esc(r.days)} <small>${t('day')}</small></span>
               </div>
             </div>
 
             <div class="job-grid">
               <div class="jf">
-                <span class="jf-label">المدينة والحي</span>
+                <span class="jf-label">${t('cityDistrict')}</span>
                 <span class="jf-value">${esc(r.city || '—')}${r.district ? ` — ${esc(r.district)}` : ''}</span>
               </div>
               <div class="jf">
-                <span class="jf-label">مكان المناسبة</span>
+                <span class="jf-label">${t('venue')}</span>
                 <span class="jf-value">${esc(r.venue || '—')}</span>
               </div>
               <div class="jf">
-                <span class="jf-label">الخدمة المطلوبة</span>
+                <span class="jf-label">${t('serviceNeeded')}</span>
                 <span class="jf-value">${esc(r.package_name || '—')}</span>
-                <span class="jf-sub">${esc(r.included_baristas)} باريستا${items.length ? ` · ${items.map((i) => `${esc(i.name)} ×${esc(i.qty)}`).join(' · ')}` : ''}</span>
+                <span class="jf-sub">${esc(r.included_baristas)} ${t('baristas')}${items.length ? ` · ${items.map((i) => `${esc(i.name)} ×${esc(i.qty)}`).join(' · ')}` : ''}</span>
               </div>
               <div class="jf">
-                <span class="jf-label">العميل</span>
+                <span class="jf-label">${t('customer')}</span>
                 <span class="jf-value">${esc(r.customer_name || '—')}</span>
               </div>
             </div>
 
-            ${r.notes ? `<div class="job-note"><b>ملاحظة من العميل:</b> ${esc(r.notes)}</div>` : ''}
+            ${r.notes ? `<div class="job-note"><b>${t('customerNote')}</b> ${esc(r.notes)}</div>` : ''}
 
             <footer class="job-actions">
-              ${maps ? `<a class="btn btn-solid btn-sm" href="${maps}" target="_blank" rel="noreferrer">افتح الخريطة</a>` : ''}
+              ${maps ? `<a class="btn btn-solid btn-sm" href="${maps}" target="_blank" rel="noreferrer">${t('openMap')}</a>` : ''}
               ${r.phone ? `<a class="btn btn-ghost btn-sm" href="tel:${esc(r.phone)}" dir="ltr">${esc(r.phone)}</a>` : ''}
             </footer>
           </article>`;
@@ -910,24 +921,21 @@
   }
 
   // ---------- التنقّل بين الصفحات ----------
-  const PAGE_TITLES = {
-    overview: 'نظرة عامة',
-    orders: 'الطلبات',
-    analytics: 'التحليلات',
-    closed: 'الأيام المقفلة',
-    users: 'المستخدمون',
+  const PAGE_KEYS = {
+    overview: 'pOverview', orders: 'pOrders', analytics: 'pAnalytics',
+    closed: 'pClosed', users: 'pUsers',
   };
 
   function currentPage() {
     const hash = (location.hash || '').replace('#/', '');
-    return PAGE_TITLES[hash] ? hash : 'overview';
+    return PAGE_KEYS[hash] ? hash : 'overview';
   }
 
   function showPage(name) {
     $$('.page').forEach((el) => el.classList.toggle('on', el.dataset.page === name));
     $$('.nav-item').forEach((el) => el.classList.toggle('on', el.dataset.page === name));
     const title = $('#page-title');
-    if (title) title.textContent = PAGE_TITLES[name];
+    if (title) title.textContent = t(PAGE_KEYS[name]);
     $('#side')?.classList.remove('open');
     if (name === 'users') renderStaff();
     if (name === 'closed') renderBlocked();
@@ -959,7 +967,7 @@
 
   function stampSync() {
     lastSync = new Date();
-    const text = `آخر تحديث ${new Intl.DateTimeFormat('ar-SA-u-ca-gregory-nu-latn',
+    const text = `${t('lastSync')} ${new Intl.DateTimeFormat('ar-SA-u-ca-gregory-nu-latn',
       { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(lastSync)}`;
     ['#sync', '#sync-staff'].forEach((sel) => { const el = $(sel); if (el) el.textContent = text; });
   }
@@ -975,15 +983,22 @@
 
   async function showDashboard(opts = {}) {
     $('#login').hidden = true;
-    if (!opts.quiet) $$('.refresh').forEach((b) => { b.textContent = 'جارٍ التحديث…'; });
+    if (!opts.quiet) $$('.refresh').forEach((b) => { b.textContent = t('refreshing'); });
 
     try {
-      if (!role) role = (await claimAccess()) || (await fetchRole());
+      if (!role) {
+        role = (await claimAccess()) || (await fetchRole());
+        const saved = await fetchProfileLang();
+        if (saved && saved !== window.WekadI18n.lang) {
+          window.WekadI18n.setLang(saved);
+          $$('.lang-pick').forEach((sel) => { sel.value = saved; });
+        }
+      }
 
       if (!role) {
         $('#dash').hidden = true;
         $('#staff-view').hidden = true;
-        showLogin('حسابك غير مُصرَّح له. تواصل مع المدير لإضافة بريدك.');
+        showLogin(t('noAccess'));
         clearSession();
         return;
       }
@@ -1014,9 +1029,9 @@
       startAutoRefresh();
     } catch (error) {
       console.error(error);
-      $('#table-body').innerHTML = '<tr><td colspan="8"><p class="empty">تعذّر تحميل الطلبات</p></td></tr>';
+      $('#table-body').innerHTML = `<tr><td colspan="8"><p class="empty">${t('loadFail')}</p></td></tr>`;
     } finally {
-      $$('.refresh').forEach((b) => { b.textContent = 'تحديث'; });
+      $$('.refresh').forEach((b) => { b.textContent = t('refresh'); });
     }
   }
 
@@ -1040,7 +1055,7 @@
         } catch (signUpError) {
           // الحساب موجود ⇒ إذن كلمة المرور هي الخاطئة
           if (/بالفعل/.test(signUpError.message)) {
-            throw new Error('كلمة المرور غير صحيحة.');
+            throw new Error(t('wrongPass'));
           }
           throw signUpError;
         }
@@ -1050,7 +1065,7 @@
           return await signIn(email, password);
         } catch (second) {
           if (second.pending) throw second;
-          const wait = new Error('أنشأنا حسابك ✓ — ينتظر التفعيل. افتح بريدك واضغط رابط التفعيل ثم ارجع وسجّل دخولك بنفس كلمة المرور.');
+          const wait = new Error(t('createdPending'));
           wait.pending = true;
           throw wait;
         }
@@ -1064,7 +1079,7 @@
       const password = $('#password').value;
 
       button.disabled = true;
-      button.textContent = 'لحظة…';
+      button.textContent = t('working');
       $('#login-err').hidden = true;
       $('#login-ok').hidden = true;
 
@@ -1081,7 +1096,7 @@
         }
       } finally {
         button.disabled = false;
-        button.textContent = 'دخول';
+        button.textContent = t('signIn');
       }
     });
 
@@ -1090,6 +1105,29 @@
     $('#export').addEventListener('click', exportCsv);
     $('#q').addEventListener('input', renderTable);
     $('#filter-status').addEventListener('change', renderTable);
+
+    // مبدّل اللغة: كل النسخ متزامنة، والاختيار يُحفظ في الحساب
+    $$('.lang-pick').forEach((sel) => {
+      sel.value = window.WekadI18n.lang;
+      sel.addEventListener('change', () => {
+        const code = sel.value;
+        window.WekadI18n.setLang(code);
+        $$('.lang-pick').forEach((other) => { other.value = code; });
+        if (session?.access_token) saveLang(code);
+      });
+    });
+
+    // إعادة رسم كل شيء عند تبدّل اللغة
+    document.addEventListener('wekad:lang', () => {
+      if ($('#dash') && !$('#dash').hidden) {
+        renderKpis(); renderPanels(); renderTable();
+        if (currentPage() === 'users') renderStaff();
+        if (currentPage() === 'closed') renderBlocked();
+        showPage(currentPage());
+      }
+      if ($('#staff-view') && !$('#staff-view').hidden) renderSchedule();
+      stampSync();
+    });
 
     window.addEventListener('hashchange', () => showPage(currentPage()));
     $('#side-toggle')?.addEventListener('click', () => $('#side').classList.toggle('open'));
@@ -1111,7 +1149,7 @@
       if (!e.target.classList.contains('status-select')) return;
       const id = e.target.dataset.id;
       const value = e.target.value;
-      if (!(await updateStatus(id, value))) { alert('تعذّر تحديث الحالة'); return; }
+      if (!(await updateStatus(id, value))) { alert(t('failStatus')); return; }
       [allOrders, scoped].forEach((list) => {
         const row = list.find((r) => String(r.id) === String(id));
         if (row) row.status = value;
@@ -1130,14 +1168,14 @@
 
       const from = $('#block-from').value;
       const to = $('#block-to').value;
-      if (!from) { err.textContent = 'اختر تاريخاً.'; err.hidden = false; return; }
+      if (!from) { err.textContent = t('pickDate'); err.hidden = false; return; }
 
       if (!(await blockRange(from, to, $('#block-reason').value.trim()))) {
-        err.textContent = 'تعذّر الإقفال — تأكد أن "إلى تاريخ" بعد "من تاريخ".';
+        err.textContent = t('badRange');
         err.hidden = false;
         return;
       }
-      ok.textContent = to && to !== from ? `أُقفلت الأيام من ${from} إلى ${to}.` : `أُقفل يوم ${from}.`;
+      ok.textContent = to && to !== from ? t('closedRange', { a: from, b: to }) : t('closedOne', { d: from });
       ok.hidden = false;
       $('#block-reason').value = '';
       renderBlocked();
@@ -1146,7 +1184,7 @@
     $('#block-list').addEventListener('click', async (e) => {
       const day = e.target.dataset?.unblock;
       if (!day) return;
-      if (!confirm(`فتح يوم ${day} للحجز؟`)) return;
+      if (!confirm(t('confirmOpen', { d: day }))) return;
       await unblockDay(day);
       renderBlocked();
     });
@@ -1167,14 +1205,14 @@
       ok.hidden = true; err.hidden = true;
 
       if (!email || password.length < 6) {
-        err.textContent = 'اكتب بريداً صحيحاً وكلمة مرور من ٦ أحرف فأكثر.';
+        err.textContent = t('badCreds');
         err.hidden = false;
         return;
       }
 
       // الصلاحية أولاً، حتى يلتقطها المشغّل لحظة إنشاء الحساب
-      if (!(await allowEmail(email, staffRole))) {
-        err.textContent = 'تعذّر حفظ الصلاحية.';
+      if (!(await allowEmail(email, staffRole, $('#staff-lang').value))) {
+        err.textContent = t('failAdd');
         err.hidden = false;
         return;
       }
@@ -1203,18 +1241,18 @@
       if (!e.target.classList.contains('role-select')) return;
       const email = e.target.dataset.email;
       const newRole = e.target.value;
-      if (!confirm(`تغيير صلاحية ${email} إلى ${newRole === 'admin' ? 'مدير' : 'موظف'}؟`)) {
+      if (!confirm(t('confirmRole', { email, role: newRole === 'admin' ? t('admin') : t('staff') }))) {
         renderStaff();
         return;
       }
-      if (!(await changeRole(email, newRole))) alert('تعذّر التغيير');
+      if (!(await changeRole(email, newRole))) alert(t('failRole'));
       renderStaff();
     });
 
     $('#staff-list').addEventListener('click', async (e) => {
       const email = e.target.dataset?.remove;
       if (!email) return;
-      if (!confirm(`إزالة صلاحية ${email}؟ لن يقدر يدخل اللوحة بعدها.`)) return;
+      if (!confirm(t('confirmRemove', { email }))) return;
       await removeStaff(email);
       renderStaff();
     });
@@ -1226,8 +1264,8 @@
       const ref = e.target.dataset?.ref;
 
       if (cancelId) {
-        if (!confirm(`إلغاء الطلب ${ref}؟`)) return;
-        if (!(await updateStatus(cancelId, 'cancelled'))) { alert('تعذّر الإلغاء'); return; }
+        if (!confirm(t('confirmCancel', { ref }))) return;
+        if (!(await updateStatus(cancelId, 'cancelled'))) { alert(t('failCancel')); return; }
         [allOrders, scoped].forEach((list) => {
           const row = list.find((r) => String(r.id) === String(cancelId));
           if (row) row.status = 'cancelled';
@@ -1237,9 +1275,9 @@
       }
 
       if (deleteId) {
-        if (!confirm(`حذف الطلب ${ref} نهائياً؟ لا يمكن التراجع.`)) return;
+        if (!confirm(t('confirmDelete', { ref }))) return;
         const response = await api(`/rest/v1/orders?id=eq.${deleteId}`, { method: 'DELETE' });
-        if (!response.ok) { alert('تعذّر الحذف'); return; }
+        if (!response.ok) { alert(t('failDelete')); return; }
         allOrders = allOrders.filter((r) => String(r.id) !== String(deleteId));
         applyRange();
       }
@@ -1252,7 +1290,7 @@
       if (!id) return;
       const row = $(`tr[data-detail="${id}"]`);
       row.hidden = !row.hidden;
-      e.target.textContent = row.hidden ? 'تفاصيل' : 'إخفاء';
+      e.target.textContent = row.hidden ? t('details') : t('hide');
     });
 
     document.addEventListener('visibilitychange', () => {

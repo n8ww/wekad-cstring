@@ -22,23 +22,28 @@
 <path transform="matrix(1,0,0,-1,1108.6843,667.3061)" d="M0 0 2.708-11.768 116.326 14.364 113.618 26.133Z" fill="currentColor"/>
 <path transform="matrix(1,0,0,-1,727.3729,583.1054)" d="M0 0C-20.416 0-31.828 9.119-32.364 26.162-32.584 34.809-30.915 44.086-28.016 50.433L-25.942 50.139C-26.685 47.646-27.032 45.392-27.032 43.359-27.032 30.44-12.905 26.492 4.144 27.131 15.387 27.359 34.267 29.647 34.267 37.466 34.267 49.908 8.415 67.23-4.234 75.71L4.962 98.123 7.876 98.212C32.946 74.971 39.344 54.561 39.344 37.206 39.344 12.34 26.431-.004 0-.004Z" fill="currentColor"/>
 </svg></div>
-    <h1>الدخول إلى اللوحة</h1>
-    <p class="sub">اكتب بريدك وكلمة مرورك — وإذا كانت أول مرة ينفتح لك حساب تلقائياً</p>
+    <h1 data-i18n="loginTitle">الدخول إلى اللوحة</h1>
+    <p class="sub" data-i18n="loginSub">اكتب بريدك وكلمة مرورك</p>
 
+    <div class="lang-row"><select class="lang-pick" aria-label="Language">
+          <option value="ar">العربية</option>
+          <option value="en">English</option>
+          <option value="tl">Filipino</option>
+        </select></div>
     <div class="alert alert-err" id="login-err" hidden></div>
     <div class="alert alert-ok" id="login-ok" hidden></div>
 
     <label class="f">
-      <span>البريد الإلكتروني</span>
+      <span data-i18n="email">البريد الإلكتروني</span>
       <input type="email" id="email" dir="ltr" required autocomplete="username">
     </label>
     <label class="f">
-      <span>كلمة المرور</span>
+      <span data-i18n="password">كلمة المرور</span>
       <input type="password" id="password" required minlength="6" autocomplete="current-password">
-      <span class="field-hint">أول مرة؟ اختر كلمة مرور من ٦ أحرف فأكثر وبنحفظها لك</span>
+      <span class="field-hint" data-i18n="passHint">أول مرة؟</span>
     </label>
 
-    <button type="submit" class="btn btn-solid btn-block" id="login-btn">دخول</button>
+    <button type="submit" class="btn btn-solid btn-block" id="login-btn" data-i18n="signIn">دخول</button>
   </form>
 </div>
 
@@ -54,16 +59,16 @@
 <path transform="matrix(1,0,0,-1,727.3729,583.1054)" d="M0 0C-20.416 0-31.828 9.119-32.364 26.162-32.584 34.809-30.915 44.086-28.016 50.433L-25.942 50.139C-26.685 47.646-27.032 45.392-27.032 43.359-27.032 30.44-12.905 26.492 4.144 27.131 15.387 27.359 34.267 29.647 34.267 37.466 34.267 49.908 8.415 67.23-4.234 75.71L4.962 98.123 7.876 98.212C32.946 74.971 39.344 54.561 39.344 37.206 39.344 12.34 26.431-.004 0-.004Z" fill="currentColor"/>
 </svg></div>
       <nav class="side-nav">
-        <a href="#/overview"  class="nav-item" data-page="overview"><span class="ic">◧</span>نظرة عامة</a>
-        <a href="#/orders"    class="nav-item" data-page="orders"><span class="ic">▤</span>الطلبات<span class="badge-n" id="nav-new"></span></a>
-        <a href="#/analytics" class="nav-item" data-page="analytics"><span class="ic">◔</span>التحليلات</a>
-        <a href="#/closed"    class="nav-item" data-page="closed"><span class="ic">⊘</span>الأيام المقفلة</a>
-        <a href="#/users"     class="nav-item" data-page="users"><span class="ic">◉</span>المستخدمون</a>
+        <a href="#/overview"  class="nav-item" data-page="overview"><span class="ic">◧</span><span data-i18n="pOverview">نظرة عامة</span></a>
+        <a href="#/orders"    class="nav-item" data-page="orders"><span class="ic">▤</span><span data-i18n="pOrders">الطلبات</span><span class="badge-n" id="nav-new"></span></a>
+        <a href="#/analytics" class="nav-item" data-page="analytics"><span class="ic">◔</span><span data-i18n="pAnalytics">التحليلات</span></a>
+        <a href="#/closed"    class="nav-item" data-page="closed"><span class="ic">⊘</span><span data-i18n="pClosed">الأيام المقفلة</span></a>
+        <a href="#/users"     class="nav-item" data-page="users"><span class="ic">◉</span><span data-i18n="pUsers">المستخدمون</span></a>
       </nav>
       <div class="side-foot">
         <div class="who who-email"></div>
         <span class="pill pill-admin role-badge"></span>
-        <button class="btn btn-ghost btn-sm logout">خروج</button>
+        <button class="btn btn-ghost btn-sm logout" data-i18n="logout">خروج</button>
       </div>
     </aside>
 
@@ -73,42 +78,47 @@
         <h1 id="page-title">نظرة عامة</h1>
         <div class="spacer"></div>
         <div class="ranges" role="group" aria-label="المدى الزمني">
-          <button class="range-btn" data-days="7">٧ أيام</button>
-          <button class="range-btn" data-days="30">٣٠ يوم</button>
-          <button class="range-btn" data-days="90">٩٠ يوم</button>
-          <button class="range-btn on" data-days="0">الكل</button>
+          <button class="range-btn" data-days="7" data-i18n="d7">٧ أيام</button>
+          <button class="range-btn" data-days="30" data-i18n="d30">٣٠ يوم</button>
+          <button class="range-btn" data-days="90" data-i18n="d90">٩٠ يوم</button>
+          <button class="range-btn on" data-days="0" data-i18n="dAll">الكل</button>
         </div>
+        <select class="lang-pick" aria-label="Language">
+          <option value="ar">العربية</option>
+          <option value="en">English</option>
+          <option value="tl">Filipino</option>
+        </select>
         <span class="who" id="sync"></span>
-        <button class="btn btn-ghost btn-sm refresh">تحديث</button>
+        <button class="btn btn-ghost btn-sm refresh" data-i18n="refresh">تحديث</button>
       </header>
 
       <!-- ===== نظرة عامة ===== -->
       <section class="page on" data-page="overview">
-        <h2 class="section-title">الأداء المالي</h2>
+        <h2 class="section-title" data-i18n="secMoney">الأداء المالي</h2>
         <div class="kpis" id="kpis-money"></div>
 
-        <h2 class="section-title">الزوار ومسار الحجز</h2>
+        <h2 class="section-title" data-i18n="secTraffic">الزوار ومسار الحجز</h2>
         <div class="kpis" id="kpis-traffic"></div>
 
-        <h2 class="section-title">أرقام التشغيل</h2>
+        <h2 class="section-title" data-i18n="secOps">أرقام التشغيل</h2>
         <div class="kpis" id="kpis-ops"></div>
 
         <details class="drop">
-          <summary><span class="s-title">الطلبات والزوار يومياً</span><span class="s-cue">عرض</span></summary>
+          <summary><span class="s-title" data-i18n="chDaily">الطلبات والزوار يومياً</span><span class="s-cue">عرض</span></summary>
           <div class="drop-body">
             <div class="panel-head"><h2></h2><span class="note" id="daily-note"></span></div>
             <div class="cols" id="chart-daily"></div>
-            <div class="axis-note"><span>الأقدم</span><span>اليوم</span></div>
+            <div class="axis-note"><span data-i18n="oldest">الأقدم</span><span data-i18n="today">اليوم</span></div>
           </div>
         </details>
 
         <details class="drop">
-          <summary><span class="s-title">مسار الحجز</span><span class="s-cue">عرض</span></summary>
+          <summary><span class="s-title" data-i18n="chFunnel">مسار الحجز</span><span class="s-cue">عرض</span></summary>
           <div class="drop-body"><div class="bars" id="funnel"></div></div>
         </details>
 
         <details class="drop">
-          <summary><span class="s-title">حالات الطلبات</span><span class="s-cue">عرض</span></summary>
+          <summary><span class="s-title" data-i18n="chStatuses">حالات الطلبات</span><span class="s-cue">عرض</span></summary>
           <div class="drop-body"><div class="bars" id="status-bars"></div></div>
         </details>
       </section>
@@ -117,11 +127,11 @@
       <section class="page" data-page="orders">
         <div class="toolbar">
           <label class="f grow">
-            <span>بحث — رقم الطلب، الاسم، الجوال، الشركة، المدينة</span>
+            <span data-i18n="searchOrders">بحث</span>
             <input type="search" id="q" placeholder="اكتب للبحث…">
           </label>
           <label class="f">
-            <span>الحالة</span>
+            <span data-i18n="status">الحالة</span>
             <select id="filter-status">
               <option value="">الكل</option>
               <option value="new">جديد</option>
@@ -132,10 +142,10 @@
             </select>
           </label>
           <label class="f">
-            <span>المدينة</span>
+            <span data-i18n="city">المدينة</span>
             <select id="filter-city"><option value="">الكل</option></select>
           </label>
-          <button class="btn btn-ghost" id="export">تصدير إكسل</button>
+          <button class="btn btn-ghost" id="export" data-i18n="export">تصدير إكسل</button>
           <span class="count" id="count"></span>
         </div>
 
@@ -161,15 +171,15 @@
       <!-- ===== التحليلات ===== -->
       <section class="page" data-page="analytics">
         <div class="panels">
-          <section class="panel"><div class="panel-head"><h2>مصادر الزوار</h2></div><div class="bars" id="sources"></div></section>
-          <section class="panel"><div class="panel-head"><h2>الأجهزة</h2></div><div class="bars" id="devices"></div></section>
-          <section class="panel"><div class="panel-head"><h2>الإيرادات شهرياً</h2><span class="note">المؤكّدة فقط</span></div><div class="cols" id="chart-monthly"></div></section>
-          <section class="panel"><div class="panel-head"><h2>الباقات الأكثر طلباً</h2></div><div class="bars" id="top-packages"></div></section>
-          <section class="panel"><div class="panel-head"><h2>الحلى الأكثر طلباً</h2></div><div class="bars" id="top-desserts"></div></section>
-          <section class="panel"><div class="panel-head"><h2>الإضافات</h2></div><div class="bars" id="top-addons"></div></section>
-          <section class="panel"><div class="panel-head"><h2>المدن — عدد الطلبات</h2></div><div class="bars" id="top-cities"></div></section>
-          <section class="panel"><div class="panel-head"><h2>المدن — الإيرادات</h2><span class="note">ر.س</span></div><div class="bars" id="rev-cities"></div></section>
-          <section class="panel"><div class="panel-head"><h2>أيام المناسبات</h2></div><div class="bars" id="top-weekdays"></div></section>
+          <section class="panel"><div class="panel-head"><h2 data-i18n="chSources">مصادر الزوار</h2></div><div class="bars" id="sources"></div></section>
+          <section class="panel"><div class="panel-head"><h2 data-i18n="chDevices">الأجهزة</h2></div><div class="bars" id="devices"></div></section>
+          <section class="panel"><div class="panel-head"><h2 data-i18n="chMonthly">الإيرادات شهرياً</h2><span class="note" data-i18n="confirmedOnly">المؤكّدة فقط</span></div><div class="cols" id="chart-monthly"></div></section>
+          <section class="panel"><div class="panel-head"><h2 data-i18n="chTopPkg">الباقات الأكثر طلباً</h2></div><div class="bars" id="top-packages"></div></section>
+          <section class="panel"><div class="panel-head"><h2 data-i18n="chTopSweets">الحلى الأكثر طلباً</h2></div><div class="bars" id="top-desserts"></div></section>
+          <section class="panel"><div class="panel-head"><h2 data-i18n="chAddons">الإضافات</h2></div><div class="bars" id="top-addons"></div></section>
+          <section class="panel"><div class="panel-head"><h2 data-i18n="chCitiesCount">المدن — عدد الطلبات</h2></div><div class="bars" id="top-cities"></div></section>
+          <section class="panel"><div class="panel-head"><h2 data-i18n="chCitiesRev">المدن — الإيرادات</h2><span class="note">ر.س</span></div><div class="bars" id="rev-cities"></div></section>
+          <section class="panel"><div class="panel-head"><h2 data-i18n="chWeekdays">أيام المناسبات</h2></div><div class="bars" id="top-weekdays"></div></section>
         </div>
       </section>
 
@@ -177,12 +187,12 @@
       <section class="page" data-page="closed">
         <div class="panel">
           <div class="panel-head">
-            <h2>إقفال أيام</h2>
-            <span class="note">اليوم المقفل ما يقدر العميل يحجزه من الموقع</span>
+            <h2 data-i18n="closeDays">إقفال أيام</h2>
+            <span class="note" data-i18n="closedHint">اليوم المقفل</span>
           </div>
           <form class="staff-add" id="block-form">
             <label class="f">
-              <span>من تاريخ</span>
+              <span data-i18n="from">من تاريخ</span>
               <input type="date" id="block-from" required>
             </label>
             <label class="f">
@@ -190,19 +200,19 @@
               <input type="date" id="block-to">
             </label>
             <label class="f grow">
-              <span>السبب</span>
-              <input type="text" id="block-reason" placeholder="إجازة · صيانة · محجوز بالكامل">
+              <span data-i18n="reason">السبب</span>
+              <input type="text" id="block-reason" data-i18n-ph="reasonPh" placeholder="إجازة · صيانة · محجوز بالكامل">
             </label>
-            <button type="submit" class="btn btn-solid">إقفال</button>
+            <button type="submit" class="btn btn-solid" data-i18n="closeBtn">إقفال</button>
           </form>
           <div class="alert alert-ok" id="block-ok" hidden></div>
           <div class="alert alert-err" id="block-err" hidden></div>
-          <p class="hint">اترك "إلى تاريخ" فاضياً لإقفال يوم واحد فقط.</p>
+          <p class="hint" data-i18n="oneDayHint">اترك إلى تاريخ فاضياً</p>
         </div>
 
         <div class="panel" style="margin-block-start:1rem">
           <div class="panel-head">
-            <h2>الأيام المقفلة حالياً</h2>
+            <h2 data-i18n="closedNow">الأيام المقفلة حالياً</h2>
             <span class="note" id="block-count"></span>
           </div>
           <div class="staff-list" id="block-list"></div>
@@ -213,27 +223,35 @@
       <section class="page" data-page="users">
         <div class="panel">
           <div class="panel-head">
-            <h2>إنشاء حساب جديد</h2>
-            <span class="note">المدير يشوف كل شي · الموظف يشوف الجدول فقط بلا أسعار</span>
+            <h2 data-i18n="createAccount">إنشاء حساب جديد</h2>
+            <span class="note" data-i18n="rolesHint">المدير يشوف كل شي</span>
           </div>
           <form class="staff-add" id="staff-form">
             <label class="f grow">
-              <span>البريد الإلكتروني</span>
+              <span data-i18n="email">البريد الإلكتروني</span>
               <input type="email" id="staff-email" dir="ltr" required placeholder="name@example.com">
             </label>
             <label class="f">
-              <span>كلمة المرور</span>
+              <span data-i18n="password">كلمة المرور</span>
               <input type="text" id="staff-pass" dir="ltr" required minlength="6" placeholder="٦ أحرف فأكثر">
             </label>
             <label class="f">
-              <span>الصلاحية</span>
+              <span data-i18n="langLabel">اللغة</span>
+              <select id="staff-lang">
+                <option value="ar">العربية</option>
+                <option value="en">English</option>
+                <option value="tl">Filipino</option>
+              </select>
+            </label>
+            <label class="f">
+              <span data-i18n="status">الصلاحية</span>
               <select id="staff-role">
                 <option value="staff">موظف</option>
                 <option value="admin">مدير</option>
               </select>
             </label>
-            <button type="button" class="btn btn-ghost" id="gen-pass">توليد</button>
-            <button type="submit" class="btn btn-solid">إنشاء الحساب</button>
+            <button type="button" class="btn btn-ghost" id="gen-pass" data-i18n="generate">توليد</button>
+            <button type="submit" class="btn btn-solid" data-i18n="createBtn">إنشاء الحساب</button>
           </form>
           <div class="alert alert-ok" id="staff-ok" hidden></div>
           <div class="alert alert-err" id="staff-err" hidden></div>
@@ -241,7 +259,7 @@
         </div>
 
         <div class="panel" style="margin-block-start:1rem">
-          <div class="panel-head"><h2>المستخدمون الحاليون</h2></div>
+          <div class="panel-head"><h2 data-i18n="currentUsers">المستخدمون الحاليون</h2></div>
           <div class="staff-list" id="staff-list"></div>
         </div>
       </section>
@@ -260,10 +278,15 @@
 <path transform="matrix(1,0,0,-1,1108.6843,667.3061)" d="M0 0 2.708-11.768 116.326 14.364 113.618 26.133Z" fill="currentColor"/>
 <path transform="matrix(1,0,0,-1,727.3729,583.1054)" d="M0 0C-20.416 0-31.828 9.119-32.364 26.162-32.584 34.809-30.915 44.086-28.016 50.433L-25.942 50.139C-26.685 47.646-27.032 45.392-27.032 43.359-27.032 30.44-12.905 26.492 4.144 27.131 15.387 27.359 34.267 29.647 34.267 37.466 34.267 49.908 8.415 67.23-4.234 75.71L4.962 98.123 7.876 98.212C32.946 74.971 39.344 54.561 39.344 37.206 39.344 12.34 26.431-.004 0-.004Z" fill="currentColor"/>
 </svg></div>
-      <h1>جدول المناسبات</h1>
+      <h1 data-i18n="schedule">جدول المناسبات</h1>
       <div class="spacer"></div>
-      <button class="btn btn-ghost btn-sm refresh">تحديث</button>
-      <button class="btn btn-ghost btn-sm logout">خروج</button>
+      <select class="lang-pick" aria-label="Language">
+          <option value="ar">العربية</option>
+          <option value="en">English</option>
+          <option value="tl">Filipino</option>
+        </select>
+      <button class="btn btn-ghost btn-sm refresh" data-i18n="refresh">تحديث</button>
+      <button class="btn btn-ghost btn-sm logout" data-i18n="logout">خروج</button>
     </header>
 
     <div class="sync-row">
@@ -276,7 +299,7 @@
 
     <div class="toolbar">
       <label class="f grow">
-        <span>بحث — المدينة، الحي، الموقع، اسم العميل</span>
+        <span data-i18n="searchSchedule">بحث</span>
         <input type="search" id="sch-q" placeholder="اكتب للبحث…">
       </label>
       <span class="count" id="sch-count"></span>
@@ -286,6 +309,7 @@
   </div>
 </div>
 
+<script src="assets/js/dash-i18n.js"></script>
 <script src="assets/js/config.js"></script>
 <script src="assets/js/dashboard.js"></script>
 </body>
