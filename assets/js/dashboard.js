@@ -782,30 +782,75 @@
     $('#sch-count').textContent = `${shown.length} مناسبة`;
 
     $('#sch-body').innerHTML = !shown.length
-      ? '<tr><td colspan="7"><p class="empty">لا توجد مناسبات قادمة</p></td></tr>'
+      ? '<p class="empty">لا توجد تركيبات قادمة</p>'
       : shown.map((r) => {
-          const maps = r.lat && r.lng ? `https://maps.google.com/?q=${r.lat},${r.lng}` : '';
           const setup = r.setup_date || r.event_date;
           const days = Math.round((startOfDay(setup) - today) / 86400000);
+          const maps = r.lat && r.lng ? `https://maps.google.com/?q=${r.lat},${r.lng}` : '';
           const items = Array.isArray(r.items) ? r.items : [];
-          const when = days === 0 ? 'اليوم' : days === 1 ? 'غداً' : days > 0 ? `بعد ${days} يوم` : '';
+
+          // درجة الاستعجال تُقرأ من النص أولاً، واللون يدعمه
+          const urgency = days === 0 ? 'today' : days === 1 ? 'tomorrow' : days <= 3 ? 'soon' : 'later';
+          // صيغة الجمع العربية: ٣–١٠ تأخذ "أيام"، وما فوقها يأخذ "يوم"
+          const whenLabel = days === 0 ? 'اليوم'
+            : days === 1 ? 'غداً'
+            : days === 2 ? 'بعد يومين'
+            : days <= 10 ? `بعد ${days} أيام`
+            : `بعد ${days} يوم`;
+
+          const sameDay = !r.setup_date || r.setup_date === r.event_date;
+
           return `
-          <tr class="row-main${days <= 1 ? ' row-soon' : ''}">
-            <td class="tab"><b>${dateOnly(setup)}</b>
-                <div class="muted">${when}</div></td>
-            <td class="tab"><b class="big-time">${esc(r.setup_time || '—')}</b>
-                <div class="muted">وقت الوصول</div></td>
-            <td class="tab">${dateOnly(r.event_date)} · <b>${esc(r.event_time || '—')}</b>
-                <div class="muted">${esc(r.days)} يوم خدمة</div></td>
-            <td>${esc(r.city || '—')}
-                <div class="muted">${esc(r.district || '')}${maps ? ` · <a href="${maps}" target="_blank" rel="noopener">خريطة</a>` : ''}</div></td>
-            <td>${esc(r.venue || '—')}</td>
-            <td>${esc(r.package_name || '—')}
-                <div class="muted">${esc(r.included_baristas)} باريستا${items.length ? ` · ${items.length} صنف` : ''}</div></td>
-            <td>${esc(r.customer_name || '—')}
-                <div class="muted"><a href="tel:${esc(r.phone)}" dir="ltr">${esc(r.phone || '')}</a></div>
-                ${r.notes ? `<div class="muted note-line">${esc(r.notes)}</div>` : ''}</td>
-          </tr>`;
+          <article class="job job--${urgency}">
+            <header class="job-head">
+              <span class="job-when">${whenLabel}</span>
+              <span class="job-date tab">${dateOnly(setup)}</span>
+              <span class="job-ref tab">${esc(r.ref)}</span>
+            </header>
+
+            <div class="job-times">
+              <div class="jt jt--main">
+                <span class="jt-label">وقت الوصول للتركيب</span>
+                <span class="jt-value tab">${esc(r.setup_time || '—')}</span>
+              </div>
+              <div class="jt">
+                <span class="jt-label">بدء تقديم الضيافة</span>
+                <span class="jt-value tab">${esc(r.event_time || '—')}</span>
+                ${sameDay ? '' : `<span class="jt-sub tab">${dateOnly(r.event_date)}</span>`}
+              </div>
+              <div class="jt">
+                <span class="jt-label">مدة الخدمة</span>
+                <span class="jt-value tab">${esc(r.days)} <small>يوم</small></span>
+              </div>
+            </div>
+
+            <div class="job-grid">
+              <div class="jf">
+                <span class="jf-label">المدينة والحي</span>
+                <span class="jf-value">${esc(r.city || '—')}${r.district ? ` — ${esc(r.district)}` : ''}</span>
+              </div>
+              <div class="jf">
+                <span class="jf-label">مكان المناسبة</span>
+                <span class="jf-value">${esc(r.venue || '—')}</span>
+              </div>
+              <div class="jf">
+                <span class="jf-label">الخدمة المطلوبة</span>
+                <span class="jf-value">${esc(r.package_name || '—')}</span>
+                <span class="jf-sub">${esc(r.included_baristas)} باريستا${items.length ? ` · ${items.map((i) => `${esc(i.name)} ×${esc(i.qty)}`).join(' · ')}` : ''}</span>
+              </div>
+              <div class="jf">
+                <span class="jf-label">العميل</span>
+                <span class="jf-value">${esc(r.customer_name || '—')}</span>
+              </div>
+            </div>
+
+            ${r.notes ? `<div class="job-note"><b>ملاحظة من العميل:</b> ${esc(r.notes)}</div>` : ''}
+
+            <footer class="job-actions">
+              ${maps ? `<a class="btn btn-solid btn-sm" href="${maps}" target="_blank" rel="noreferrer">افتح الخريطة</a>` : ''}
+              ${r.phone ? `<a class="btn btn-ghost btn-sm" href="tel:${esc(r.phone)}" dir="ltr">${esc(r.phone)}</a>` : ''}
+            </footer>
+          </article>`;
         }).join('');
   }
 

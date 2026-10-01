@@ -533,3 +533,105 @@ tr.row-detail td { background: var(--surface-2); }
 tr.row-soon td { background: var(--brand-wash); }
 tr.row-soon td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
 .big-time { font-size: 1.05rem; color: var(--brand); }
+
+/* ==========================================================================
+   بطاقات مهام الموظف — تُقرأ من الجوال في الموقع
+   درجة الاستعجال مكتوبة نصاً (اليوم / غداً) واللون يدعمها فقط
+   ========================================================================== */
+.jobs { display: grid; gap: 0.9rem; }
+
+.job {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  border-inline-start: 5px solid var(--line);
+}
+.job--today    { border-inline-start-color: #c0392b; }
+.job--tomorrow { border-inline-start-color: #d97706; }
+.job--soon     { border-inline-start-color: var(--brand-bright); }
+.job--later    { border-inline-start-color: var(--line); }
+
+.job-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1.2rem;
+  border-block-end: 1px solid var(--line);
+}
+.job-when {
+  border-radius: 999px;
+  padding: 0.25rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: var(--surface-sunk);
+  color: var(--ink-2);
+}
+.job--today    .job-when { background: #fcebe9; color: #a32a1e; }
+.job--tomorrow .job-when { background: #fdf1e0; color: #92600a; }
+.job--soon     .job-when { background: var(--brand-wash); color: var(--brand-deep); }
+.job-date { font-size: 1rem; font-weight: 700; }
+.job-ref { margin-inline-start: auto; font-size: 0.78rem; color: var(--ink-muted); }
+
+/* الأوقات: أكبر شيء في البطاقة */
+.job-times {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border-block-end: 1px solid var(--line);
+}
+.jt { background: var(--surface); padding: 0.9rem 1.2rem; display: grid; gap: 0.2rem; }
+.jt--main { background: var(--brand-wash); }
+.jt-label { font-size: 0.76rem; color: var(--ink-muted); }
+.jt-value { font-size: 1.65rem; font-weight: 700; line-height: 1.1; }
+.jt--main .jt-value { color: var(--brand-deep); font-size: 2rem; }
+.jt-value small { font-size: 0.9rem; font-weight: 400; color: var(--ink-muted); }
+.jt-sub { font-size: 0.78rem; color: var(--ink-muted); }
+
+/* التفاصيل */
+.job-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem 1.6rem;
+  padding: 1.1rem 1.2rem;
+}
+.jf { display: grid; gap: 0.15rem; min-width: 0; }
+.jf-label { font-size: 0.75rem; color: var(--ink-muted); }
+.jf-value { font-size: 1rem; font-weight: 500; }
+.jf-sub { font-size: 0.8rem; color: var(--ink-2); }
+
+.job-note {
+  margin: 0 1.2rem 1.1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  background: #fdf1e0;
+  border: 1px solid #f0dcb8;
+  color: #7a5410;
+  font-size: 0.88rem;
+}
+.job-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0 1.2rem 1.2rem;
+}
+.job-actions .btn { flex: 1; min-width: 130px; }
+
+@media (max-width: 560px) {
+  .jt--main .jt-value { font-size: 1.75rem; }
+  .job-grid { grid-template-columns: 1fr; gap: 0.8rem; }
+}
+
+@media (max-width: 520px) {
+  /* وقت الوصول يملأ العرض — هو أهم معلومة للموظف في الموقع */
+  .job-times { grid-template-columns: 1fr 1fr; }
+  .jt--main { grid-column: 1 / -1; }
+  .jt--main .jt-value { font-size: 2.4rem; }
+  .job-head { padding-inline: 1rem; }
+  .jt, .job-grid { padding-inline: 1rem; }
+  .job-note, .job-actions { margin-inline: 1rem; padding-inline: 0; }
+  .job-actions { padding-block-end: 1.1rem; }
+}
