@@ -57,6 +57,7 @@
         <a href="#/overview"  class="nav-item" data-page="overview"><span class="ic">◧</span>نظرة عامة</a>
         <a href="#/orders"    class="nav-item" data-page="orders"><span class="ic">▤</span>الطلبات<span class="badge-n" id="nav-new"></span></a>
         <a href="#/analytics" class="nav-item" data-page="analytics"><span class="ic">◔</span>التحليلات</a>
+        <a href="#/closed"    class="nav-item" data-page="closed"><span class="ic">⊘</span>الأيام المقفلة</a>
         <a href="#/users"     class="nav-item" data-page="users"><span class="ic">◉</span>المستخدمون</a>
       </nav>
       <div class="side-foot">
@@ -169,6 +170,42 @@
           <section class="panel"><div class="panel-head"><h2>المدن — عدد الطلبات</h2></div><div class="bars" id="top-cities"></div></section>
           <section class="panel"><div class="panel-head"><h2>المدن — الإيرادات</h2><span class="note">ر.س</span></div><div class="bars" id="rev-cities"></div></section>
           <section class="panel"><div class="panel-head"><h2>أيام المناسبات</h2></div><div class="bars" id="top-weekdays"></div></section>
+        </div>
+      </section>
+
+      <!-- ===== الأيام المقفلة ===== -->
+      <section class="page" data-page="closed">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>إقفال أيام</h2>
+            <span class="note">اليوم المقفل ما يقدر العميل يحجزه من الموقع</span>
+          </div>
+          <form class="staff-add" id="block-form">
+            <label class="f">
+              <span>من تاريخ</span>
+              <input type="date" id="block-from" required>
+            </label>
+            <label class="f">
+              <span>إلى تاريخ <em style="font-style:normal;color:var(--ink-muted)">(اختياري)</em></span>
+              <input type="date" id="block-to">
+            </label>
+            <label class="f grow">
+              <span>السبب</span>
+              <input type="text" id="block-reason" placeholder="إجازة · صيانة · محجوز بالكامل">
+            </label>
+            <button type="submit" class="btn btn-solid">إقفال</button>
+          </form>
+          <div class="alert alert-ok" id="block-ok" hidden></div>
+          <div class="alert alert-err" id="block-err" hidden></div>
+          <p class="hint">اترك "إلى تاريخ" فاضياً لإقفال يوم واحد فقط.</p>
+        </div>
+
+        <div class="panel" style="margin-block-start:1rem">
+          <div class="panel-head">
+            <h2>الأيام المقفلة حالياً</h2>
+            <span class="note" id="block-count"></span>
+          </div>
+          <div class="staff-list" id="block-list"></div>
         </div>
       </section>
 

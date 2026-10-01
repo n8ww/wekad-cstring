@@ -131,6 +131,34 @@
   // Analytics is optional: the app must behave identically when it is absent.
   const track = (name, params) => { try { window.wekadTrack?.(name, params); } catch { /* never break the form */ } };
 
+  const blockedDays = new Map();   // 'YYYY-MM-DD' -> سبب الإقفال
+
+  /** الأيام التي أقفلها المدير من اللوحة. فشل التحميل لا يمنع الحجز. */
+  async function loadBlockedDays() {
+    const cfg = window.WEKAD_CONFIG || {};
+    if (!cfg.SUPABASE_URL) return;
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const response = await fetch(
+        `${cfg.SUPABASE_URL}/rest/v1/blocked_dates?select=day,reason&day=gte.${today}`,
+        { headers: { apikey: cfg.SUPABASE_KEY, Authorization: `Bearer ${cfg.SUPABASE_KEY}` } },
+      );
+      if (!response.ok) return;
+      (await response.json()).forEach((row) => blockedDays.set(row.day, row.reason || ''));
+      renderBlockedHint();
+    } catch { /* الموقع يعمل بدونها */ }
+  }
+
+  function renderBlockedHint() {
+    const box = $('#blocked-note');
+    if (!box) return;
+    const days = [...blockedDays.keys()].sort().slice(0, 12);
+    if (!days.length) { box.hidden = true; return; }
+    box.innerHTML = `<b>أيام غير متاحة:</b> ${days.join(' · ')}`
+      + (blockedDays.size > days.length ? ` وأكثر` : '');
+    box.hidden = false;
+  }
+
   const $  = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
@@ -422,6 +450,12 @@
       if (state.date < state.setupDate) return 'تاريخ بدء العمل لا يسبق تاريخ التركيب.';
       if (state.date === state.setupDate && state.time < state.setupTime) {
         return 'وقت بدء العمل لازم يكون بعد وقت التركيب.';
+      }
+      for (const [label, day] of [['التركيب', state.setupDate], ['بدء العمل', state.date]]) {
+        if (blockedDays.has(day)) {
+          const why = blockedDays.get(day);
+          return `يوم ${label} (${day}) غير متاح${why ? ` — ${why}` : ''}. اختر يوماً آخر.`;
+        }
       }
       if (!state.district.trim()) return 'اكتب اسم الحي.';
       if (state.lat == null) return 'حدّد موقع المناسبة على الخريطة.';
@@ -828,6 +862,19 @@
     bind('#f-notes', 'notes');
     $('#f-city').addEventListener('change', (e) => { state.city = e.target.value; });
 
+    // رفض الأيام المقفلة فور اختيارها، بدل تركها حتى الإرسال
+    const guardBlocked = (input, key) => input.addEventListener('change', () => {
+      const day = input.value;
+      if (!day || !blockedDays.has(day)) return;
+      const why = blockedDays.get(day);
+      $('#err').textContent = `يوم ${day} غير متاح${why ? ` (${why})` : ''} — اختر يوماً آخر.`;
+      input.value = '';
+      state[key] = '';
+      input.focus();
+    });
+    guardBlocked($('#f-setup-date'), 'setupDate');
+    guardBlocked($('#f-date'), 'date');
+
     // اختيار يوم التركيب يقترح نفس اليوم لبدء العمل، ويمنع اختيار يوم أسبق منه
     $('#f-setup-date').addEventListener('change', () => {
       const serviceInput = $('#f-date');
@@ -895,6 +942,7 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     renderStatic();
+    loadBlockedDays();
     wire();
     chrome();
     syncSizePane();

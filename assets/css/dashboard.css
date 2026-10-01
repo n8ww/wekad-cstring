@@ -635,3 +635,6 @@ tr.row-soon td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
   .job-note, .job-actions { margin-inline: 1rem; padding-inline: 0; }
   .job-actions { padding-block-end: 1.1rem; }
 }
+
+.pill-closed { background: #fcebe9; color: #a32a1e; }
+.staff-row.is-past { opacity: 0.5; }

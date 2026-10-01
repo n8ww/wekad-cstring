@@ -269,6 +269,61 @@
   }
 
   // ==========================================================================
+  //  الأيام المقفلة
+  // ==========================================================================
+  async function fetchBlocked() {
+    const r = await api('/rest/v1/blocked_dates?select=*&order=day.asc');
+    return r.ok ? r.json() : [];
+  }
+
+  async function blockRange(from, to, reason) {
+    const rows = [];
+    const start = new Date(`${from}T12:00:00`);
+    const end = new Date(`${to || from}T12:00:00`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return false;
+
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      rows.push({ day: d.toISOString().slice(0, 10), reason });
+      if (rows.length > 400) break;          // حدّ أمان
+    }
+    const r = await api('/rest/v1/blocked_dates', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(rows),
+    });
+    return r.ok;
+  }
+
+  async function unblockDay(day) {
+    const r = await api(`/rest/v1/blocked_dates?day=eq.${day}`, { method: 'DELETE' });
+    return r.ok;
+  }
+
+  async function renderBlocked() {
+    const rows = await fetchBlocked();
+    const list = $('#block-list');
+    if (!list) return;
+
+    const today = new Date().toISOString().slice(0, 10);
+    const upcoming = rows.filter((r) => r.day >= today);
+    $('#block-count').textContent = upcoming.length
+      ? `${upcoming.length} يوم قادم مقفل` : 'لا توجد أيام مقفلة';
+
+    list.innerHTML = !rows.length
+      ? '<p class="empty">ما فيه أيام مقفلة — كل المواعيد متاحة</p>'
+      : rows.map((r) => {
+          const past = r.day < today;
+          return `
+          <div class="staff-row${past ? ' is-past' : ''}">
+            <span class="staff-mail tab">${esc(r.day)}</span>
+            <span class="staff-state">${esc(r.reason || '—')}</span>
+            ${past ? '<span class="pill pill-staff">مضى</span>' : '<span class="pill pill-closed">مقفل</span>'}
+            <button class="btn btn-ghost btn-sm" data-unblock="${esc(r.day)}">فتح</button>
+          </div>`;
+        }).join('');
+  }
+
+  // ==========================================================================
   //  الحسابات
   // ==========================================================================
   const itemsOf = (row) => (Array.isArray(row.items) ? row.items : []);
@@ -859,6 +914,7 @@
     overview: 'نظرة عامة',
     orders: 'الطلبات',
     analytics: 'التحليلات',
+    closed: 'الأيام المقفلة',
     users: 'المستخدمون',
   };
 
@@ -874,6 +930,7 @@
     if (title) title.textContent = PAGE_TITLES[name];
     $('#side')?.classList.remove('open');
     if (name === 'users') renderStaff();
+    if (name === 'closed') renderBlocked();
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
@@ -1065,6 +1122,35 @@
     });
 
     // إضافة موظف
+    $('#block-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const ok = $('#block-ok');
+      const err = $('#block-err');
+      ok.hidden = true; err.hidden = true;
+
+      const from = $('#block-from').value;
+      const to = $('#block-to').value;
+      if (!from) { err.textContent = 'اختر تاريخاً.'; err.hidden = false; return; }
+
+      if (!(await blockRange(from, to, $('#block-reason').value.trim()))) {
+        err.textContent = 'تعذّر الإقفال — تأكد أن "إلى تاريخ" بعد "من تاريخ".';
+        err.hidden = false;
+        return;
+      }
+      ok.textContent = to && to !== from ? `أُقفلت الأيام من ${from} إلى ${to}.` : `أُقفل يوم ${from}.`;
+      ok.hidden = false;
+      $('#block-reason').value = '';
+      renderBlocked();
+    });
+
+    $('#block-list').addEventListener('click', async (e) => {
+      const day = e.target.dataset?.unblock;
+      if (!day) return;
+      if (!confirm(`فتح يوم ${day} للحجز؟`)) return;
+      await unblockDay(day);
+      renderBlocked();
+    });
+
     $('#gen-pass').addEventListener('click', () => {
       const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
       const bytes = crypto.getRandomValues(new Uint8Array(10));
