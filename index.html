@@ -233,6 +233,23 @@
             <p class="pane-hint">اختر الحجم المناسب لعدد ضيوفك.</p>
             <div id="size-counter">
               <div class="opts opts--pkg" id="opt-packages"></div>
+
+              <div class="custom-panel" id="custom-panel" hidden>
+                <h4 class="custom-title">فصّل باقتك<span class="en">Tell us what you need</span></h4>
+                <div class="grid2">
+                  <label class="f">
+                    <span>عدد الأكواب التقريبي <em>/ Approx. cups</em></span>
+                    <input type="number" id="f-custom-cups" min="10" max="5000" step="10"
+                           dir="ltr" placeholder="مثال: 450">
+                  </label>
+                </div>
+                <label class="f" style="margin-block-start:1rem">
+                  <span>وش تحتاج بالضبط؟ <em>/ What do you need?</em></span>
+                  <textarea id="f-custom-request"
+                    placeholder="اكتب نوع المناسبة، المشروبات المطلوبة، عدد الباريستا، أي تجهيزات خاصة…"></textarea>
+                </label>
+                <p class="custom-note">نراجع طلبك ونتواصل معك بعرض سعر مفصّل.</p>
+              </div>
             </div>
             <div id="size-flask" hidden>
               <div class="opts opts--2" id="opt-flasks"></div>

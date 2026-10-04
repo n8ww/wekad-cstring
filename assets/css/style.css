@@ -1063,3 +1063,40 @@ body::after {
   line-height: 1.8;
 }
 .blocked-note b { color: var(--sand); }
+
+/* ---------- الباقة المخصصة ---------- */
+.opt--custom .opt-big {
+  font-family: var(--font-ar);
+  font-size: 2.2rem;
+  color: var(--sand);
+}
+.opt--custom { border-style: dashed; }
+.opt--custom:has(input:checked) { border-style: solid; }
+
+.custom-panel {
+  margin-block-start: 1.4rem;
+  border: 1px solid var(--sand-hair);
+  background: rgba(222, 196, 158, 0.05);
+  padding: 1.4rem;
+  animation: paneIn 0.45s var(--ease-out);
+}
+.custom-title {
+  font-size: 1.05rem;
+  font-weight: 400;
+  color: var(--sand);
+  margin-block-end: 1rem;
+}
+.custom-title .en {
+  display: block;
+  font-family: var(--font-en);
+  font-size: 0.85rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(237, 230, 218, 0.45);
+  margin-block-start: 0.15rem;
+}
+.custom-note {
+  font-size: 0.82rem;
+  color: rgba(237, 230, 218, 0.5);
+  margin-block-start: 0.9rem;
+}

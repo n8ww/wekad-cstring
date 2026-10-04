@@ -108,6 +108,8 @@
     step: 0,
     service: 'counter',
     packageId: 'p100',
+    customCups: '',
+    customRequest: '',
     flaskId: 'f1',
     qty: Object.fromEntries(ITEMS.map((i) => [i.id, 0])),
     days: 1,
@@ -170,7 +172,14 @@
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   // ---------- pricing ----------
+  const CUSTOM = { id: 'custom', ar: 'باقة مخصصة', en: 'Custom package', price: 0 };
+
+  function isCustom() {
+    return state.service === 'counter' && state.packageId === 'custom';
+  }
+
   function chosenBase() {
+    if (isCustom()) return { ...CUSTOM, cups: Number(state.customCups) || 0 };
     return state.service === 'counter'
       ? PACKAGES.find((p) => p.id === state.packageId)
       : FLASKS.find((f) => f.id === state.flaskId);
@@ -291,8 +300,14 @@
         <span class="opt-check"></span>
         <span class="opt-big num">${p.cups}</span>
         <span class="opt-meta">كوب / cups</span>
-
-      </label>`).join('');
+      </label>`).join('') + `
+      <label class="opt opt--custom">
+        <input type="radio" name="pkg" value="custom" ${state.packageId === 'custom' ? 'checked' : ''}>
+        <span class="opt-check"></span>
+        <span class="opt-big">✎</span>
+        <span class="opt-name">باقة مخصصة<span class="en">Custom package</span></span>
+        <span class="opt-meta">نفصّلها على مقاسك</span>
+      </label>`;
 
     $('#opt-flasks').innerHTML = FLASKS.map((f) => `
       <label class="opt">
@@ -322,25 +337,38 @@
     $('#f-setup-date').min = earliest;
   }
 
+  /** تظهر حقول التخصيص فقط عند اختيار "باقة مخصصة". */
+  function syncCustomPanel() {
+    const box = $('#custom-panel');
+    if (!box) return;
+    const on = state.service === 'counter' && state.packageId === 'custom';
+    box.hidden = !on;
+    if (on) $('#f-custom-cups').focus({ preventScroll: true });
+  }
+
   function syncSizePane() {
     const counter = state.service === 'counter';
     $('#size-counter').hidden = !counter;
     $('#size-flask').hidden = counter;
+    syncCustomPanel();
     $('#size-title-ar').textContent = counter ? 'عدد الأكواب' : 'عدد الحافظات';
     $('#size-title-en').textContent = counter ? 'Total of cups' : 'Number of flasks';
   }
 
   function renderReview() {
     const t = totals();
-    const sizeText = state.service === 'counter'
-      ? `${t.base.cups} كوب`
-      : `${t.base.ar} (${t.base.cupsFrom}–${t.base.cupsTo} كوب)`;
+    const sizeText = isCustom()
+      ? `باقة مخصصة — ${t.base.cups} كوب`
+      : state.service === 'counter'
+        ? `${t.base.cups} كوب`
+        : `${t.base.ar} (${t.base.cupsFrom}–${t.base.cupsTo} كوب)`;
 
     const link = mapsLink();
     const rows = [
       ['الخدمة', SERVICES[state.service].ar],
       ['باريستا مشمولة مجاناً', `${includedBaristas()}`],
       [state.service === 'counter' ? 'الباقة' : 'الحافظات', sizeText],
+      ...(isCustom() ? [['طلبك الخاص', state.customRequest]] : []),
       ['عدد الأيام', String(state.days)],
       ['تاريخ التركيب', state.setupDate || '—'],
       ['وقت التركيب', state.setupTime || '—'],
@@ -430,6 +458,13 @@
   }
 
   function validate() {
+    if (PANES[state.step] === 'size' && isCustom()) {
+      const cups = Number(state.customCups);
+      if (!cups || cups < 10) return 'اكتب عدد الأكواب التقريبي (١٠ على الأقل).';
+      if (cups > 5000) return 'عدد الأكواب كبير جداً — تواصل معنا مباشرة.';
+      if (state.customRequest.trim().length < 10) return 'اكتب وصفاً قصيراً لما تحتاجه.';
+    }
+
     if (PANES[state.step] === 'when') {
       const today = new Date().toISOString().slice(0, 10);
       if (!state.setupDate) return 'اختر تاريخ التركيب.';
@@ -568,7 +603,12 @@
     out.push('*١ · الخدمة المطلوبة*');
     out.push(HR);
     out.push(`▪︎ النوع: ${SERVICES[state.service].ar}`);
-    if (state.service === 'counter') {
+    if (isCustom()) {
+      out.push('▪︎ *باقة مخصصة*');
+      out.push(`▪︎ عدد الأكواب التقريبي: ${t.base.cups}`);
+      out.push('▪︎ طلب العميل:');
+      out.push(state.customRequest.trim());
+    } else if (state.service === 'counter') {
       out.push(`▪︎ الباقة: ${t.base.cups} كوب`);
     } else {
       out.push(`▪︎ الحافظات: ${t.base.ar}`);
@@ -681,7 +721,11 @@
       ref: currentRef,
       service: state.service,
       package_id: t.base.id,
-      package_name: state.service === 'counter' ? `${t.base.cups} كوب` : t.base.ar,
+      package_name: isCustom()
+        ? `باقة مخصصة — ${t.base.cups} كوب`
+        : (state.service === 'counter' ? `${t.base.cups} كوب` : t.base.ar),
+      custom_cups: isCustom() ? Number(state.customCups) : null,
+      custom_request: isCustom() ? state.customRequest.trim() : null,
       package_price: t.base.price,
       days: state.days,
       setup_date: state.setupDate || null,
@@ -766,6 +810,7 @@
     $('#opt-packages').addEventListener('change', (e) => {
       if (e.target.name === 'pkg') {
         state.packageId = e.target.value;
+        syncCustomPanel();
         renderTotal();
         const pkg = PACKAGES.find((p) => p.id === e.target.value);
         track('select_item', { item_id: pkg.id, item_name: `${pkg.cups} كوب`, price: pkg.price, item_category: 'package' });
@@ -827,6 +872,8 @@
     days.addEventListener('input', () => setDays(parseInt(days.value, 10)));
 
     const bind = (sel, key) => $(sel).addEventListener('input', (e) => { state[key] = e.target.value; });
+    bind('#f-custom-cups', 'customCups');
+    bind('#f-custom-request', 'customRequest');
     bind('#f-setup-date', 'setupDate');
     bind('#f-setup-time', 'setupTime');
     bind('#f-date', 'date');

@@ -177,6 +177,7 @@
       desserts: 'الحلى المطلوب', addonsList: 'الإضافات',
       noDesserts: 'ما فيه حلى في هذا الطلب',
       tapToUndo: 'اضغط مرة ثانية للتراجع',
+      customReq: 'طلب خاص من العميل', customPkg: 'باقة مخصصة',
       // أخطاء
       noAccess: 'حسابك غير مُصرَّح له. تواصل مع المدير لإضافة بريدك.',
       sessionEnded: 'انتهت الجلسة، سجّل دخولك مرة ثانية.',
@@ -314,6 +315,7 @@
       desserts: 'Desserts ordered', addonsList: 'Add-ons',
       noDesserts: 'No desserts in this order',
       tapToUndo: 'Tap again to undo',
+      customReq: 'Custom request from the customer', customPkg: 'Custom package',
       noAccess: 'Your account is not authorised. Ask the admin to add your email.',
       sessionEnded: 'Session expired, please sign in again.',
       loadFail: 'Could not load orders',
@@ -449,6 +451,7 @@
       desserts: 'Mga dessert na inorder', addonsList: 'Mga add-on',
       noDesserts: 'Walang dessert sa order na ito',
       tapToUndo: 'Pindutin ulit para bawiin',
+      customReq: 'Espesyal na hiling ng kliyente', customPkg: 'Custom na package',
       noAccess: 'Hindi awtorisado ang account mo. Hilingin sa admin na idagdag ang email mo.',
       sessionEnded: 'Nag-expire ang session, mag-sign in ulit.',
       loadFail: 'Hindi ma-load ang mga order',

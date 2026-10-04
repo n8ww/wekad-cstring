@@ -797,3 +797,10 @@ tr.row-soon td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
   .job-flow { margin-inline: 0; }
   .flow-step { min-width: 0; flex: 1 1 30%; padding-block: 0.7rem; }
 }
+
+/* الطلب الخاص يبرز عن ملاحظة العميل العادية */
+.job-note--custom {
+  background: var(--brand-wash);
+  border-color: #cfe8dc;
+  color: var(--brand-deep);
+}

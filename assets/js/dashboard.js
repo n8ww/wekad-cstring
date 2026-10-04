@@ -897,6 +897,7 @@
             <div><dt>${t('dAddons')}</dt><dd class="num">${n2(r.addons_total)} ر.س</dd></div>
             <div><dt>${t('dSweets')}</dt><dd class="num">${n2(r.desserts_total)} ر.س</dd></div>
             ${r.vat ? `<div><dt>${t('dVat')}</dt><dd class="num">${esc(r.vat)}</dd></div>` : ''}
+            ${r.custom_request ? `<div style="grid-column:1/-1"><dt>${t('customReq')}</dt><dd>${esc(r.custom_request)}</dd></div>` : ''}
             ${r.notes ? `<div style="grid-column:1/-1"><dt>${t('dNotes')}</dt><dd>${esc(r.notes)}</dd></div>` : ''}
           </dl>
           ${items.length ? `<ul class="items-list">${items.map((i) => `
@@ -913,7 +914,7 @@
     const headers = [
       'رقم الطلب', 'تاريخ الطلب', 'الحالة', 'العميل', 'نوع العميل', 'الشركة',
       'الرقم الضريبي', 'الجوال', 'الخدمة', 'الباقة', 'الأيام',
-      'تاريخ التركيب', 'وقت التركيب', 'تاريخ بدء العمل', 'وقت بدء العمل', 'المدينة', 'الحي', 'الموقع', 'رابط الخريطة', 'باريستا مشمولة',
+      'تاريخ التركيب', 'وقت التركيب', 'تاريخ بدء العمل', 'وقت بدء العمل', 'طلب خاص', 'المدينة', 'الحي', 'الموقع', 'رابط الخريطة', 'باريستا مشمولة',
       'الإضافات', 'الحلى', 'الإجمالي', 'الأصناف', 'ملاحظات',
     ];
 
@@ -931,7 +932,7 @@
       r.company, r.vat, r.phone,
       r.service === 'counter' ? 'ركن ضيافة القهوة' : 'خدمة الحافظات',
       r.package_name, r.days, r.setup_date, r.setup_time, r.event_date, r.event_time,
-      r.city, r.district, r.venue,
+      r.custom_request, r.city, r.district, r.venue,
       r.lat && r.lng ? `https://maps.google.com/?q=${r.lat},${r.lng}` : '',
       r.included_baristas, r.addons_total, r.desserts_total, r.total,
       itemsOf(r).map((i) => `${i.name} ×${i.qty}`).join(' | '),
@@ -1131,6 +1132,7 @@
                 </ul>
               </div>` : ''}
 
+            ${r.custom_request ? `<div class="job-note job-note--custom"><b>${t('customReq')}</b> ${esc(r.custom_request)}</div>` : ''}
             ${r.notes ? `<div class="job-note"><b>${t('customerNote')}</b> ${esc(r.notes)}</div>` : ''}
 
             <footer class="job-actions">
