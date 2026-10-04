@@ -64,7 +64,7 @@
       id: 'cake',
       ar: 'الكيك الطبيعي الكبير',
       en: 'Large Fresh Cakes',
-      note: 'السعر للكيكة الواحدة',
+      note: 'يُطلب بالحبة',
       unitAr: 'كيكة',
       max: 100,
       items: [
@@ -219,15 +219,13 @@
       <div class="qrow" data-id="${item.id}">
         <div class="qrow-main">
           <span class="qrow-name">${item.ar}<span class="en">${item.en}</span></span>
-          <span class="qrow-price"><span class="num">${fmt(item.price)}</span>${sarIcon()}
-            <span class="qrow-per">${perLabel}</span></span>
         </div>
         <div class="stepper stepper--sm">
           <button type="button" data-q="-" aria-label="إنقاص ${item.ar}">−</button>
           <input type="number" value="0" min="0" max="${item.max}" step="${item.step}" inputmode="numeric" aria-label="كمية ${item.ar}">
           <button type="button" data-q="+" aria-label="زيادة ${item.ar}">+</button>
         </div>
-        <div class="qrow-total"><span class="num">0</span></div>
+
       </div>`;
   }
 
@@ -237,9 +235,6 @@
       const qty = state.qty[item.id] || 0;
       const total = round2(item.per === 'day' ? item.price * qty * state.days : item.price * qty);
       row.classList.toggle('on', qty > 0);
-      $('.qrow-total', row).innerHTML = qty
-        ? `<span class="num">${fmt(total)}</span>${sarIcon()}`
-        : '<span class="num" style="opacity:.3">—</span>';
     });
   }
 
@@ -252,9 +247,7 @@
         <div class="pkg-label">عــدد الأكـواب<span class="en">Total of cups</span></div>
         <div class="pkg-cups num">${p.cups}</div>
         <div class="pkg-cups-unit">كوب</div>
-        <div class="pkg-rule"></div>
-        <div class="pkg-label">السعر<span class="en">Price</span></div>
-        <div class="pkg-price"><span class="amount num">${fmt(p.price)}</span>${sarIcon()}</div>
+
       </article>`).join('');
 
     $('#flask-rows').innerHTML = FLASKS.map((f) => `
@@ -263,7 +256,7 @@
           <div class="row-name">${f.ar}<span class="en">${f.en}</span></div>
           <div class="row-note">تكفي من ${f.cupsFrom} إلى ${f.cupsTo} كوب · سعة ٦ لتر</div>
         </div>
-        <div class="row-price"><span class="num">${fmt(f.price)}</span>${sarIcon()}</div>
+
       </div>`).join('');
 
     $('#extra-rows').innerHTML = EXTRAS.map((e) => `
@@ -272,7 +265,7 @@
           <div class="row-name">${e.ar}<span class="en">${e.en}</span></div>
           <div class="row-note">${e.per === 'day' ? 'لكل باريستا في اليوم' : 'لكل كوب'}</div>
         </div>
-        <div class="row-price"><span class="num">${fmt(e.price)}</span>${sarIcon()}</div>
+
       </div>`).join('');
 
     // dessert menu on the landing page, one block per group
@@ -286,7 +279,7 @@
           ${g.items.map((d) => `
             <article class="sweet">
               <span class="sweet-name">${d.ar}<span class="en">${d.en}</span></span>
-              <span class="sweet-price"><span class="num">${fmt(d.price)}</span>${sarIcon()}</span>
+
             </article>`).join('')}
         </div>
       </section>`).join('');
@@ -298,7 +291,7 @@
         <span class="opt-check"></span>
         <span class="opt-big num">${p.cups}</span>
         <span class="opt-meta">كوب / cups</span>
-        <span class="opt-price"><span class="num">${fmt(p.price)}</span>${sarIcon()}</span>
+
       </label>`).join('');
 
     $('#opt-flasks').innerHTML = FLASKS.map((f) => `
@@ -308,7 +301,7 @@
         <span class="opt-big num">${f.count}</span>
         <span class="opt-name">${f.ar}<span class="en">${f.en}</span></span>
         <span class="opt-meta">${f.cupsFrom}–${f.cupsTo} كوب</span>
-        <span class="opt-price"><span class="num">${fmt(f.price)}</span>${sarIcon()}</span>
+
       </label>`).join('');
 
     $('#qty-extras').innerHTML = EXTRAS.map(qtyRow).join('');
@@ -357,7 +350,7 @@
       ['الحي', state.district || '—'],
       ['وصف الموقع', state.venue || '—'],
       ...(link ? [['الموقع على الخريطة', 'تم تحديده على الخريطة ✓']] : []),
-      ...t.lines.map((l) => [l.ar, `${fmt(l.qty)} ${l.unitAr} × ${fmt(l.price)} = ${fmt(l.total)}`]),
+      ...t.lines.map((l) => [l.ar, `${fmt(l.qty)} ${l.unitAr}`]),
       ['نوع العميل', state.clientType === 'company' ? 'شركة' : 'أفراد'],
       ...(state.clientType === 'company'
         ? [['اسم الشركة', state.company || '—'], ['الرقم الضريبي', state.vat || '—']]
@@ -368,9 +361,7 @@
     ];
 
     $('#review').innerHTML =
-      rows.map(([k, v]) => `<div class="review-row"><dt>${k}</dt><dd>${escapeHtml(v)}</dd></div>`).join('') +
-      `<div class="review-row review-row--sum"><dt>الإجمالي التقديري</dt>
-         <dd><span class="num">${fmt(t.grand)}</span>${sarIcon()}</dd></div>`;
+      rows.map(([k, v]) => `<div class="review-row"><dt>${k}</dt><dd>${escapeHtml(v)}</dd></div>`).join('');
   }
 
   function renderIncluded() {
@@ -382,13 +373,12 @@
       <span class="inc-text">
         <strong class="num">${n}</strong> ${n === 1 ? 'باريستا' : 'باريستا'} مع طلبك بدون أي رسوم.
         ${n === 1
-          ? `<em>تصير ٢ تلقائياً مع باقة ${BARISTA_RULE.bonusFromCups} كوب فأكثر وطلب حلى من ${fmt(BARISTA_RULE.bonusFromDesserts)} ر.س.</em>`
+          ? `<em>تصير ٢ تلقائياً مع باقة ${BARISTA_RULE.bonusFromCups} كوب فأكثر وطلب حلى كبير.</em>`
           : '<em>ترقّت إلى باريستين لأن الباقة كبيرة وطلب الحلى كبير.</em>'}
       </span>`;
   }
 
   function renderTotal() {
-    $('#total-value').innerHTML = `<span class="num">${fmt(totals().grand)}</span>${sarIcon()}`;
     refreshQtyTotals();
     renderIncluded();
   }
@@ -585,7 +575,6 @@
       out.push(`▪︎ تكفي: ${t.base.cupsFrom}–${t.base.cupsTo} كوب`);
     }
     out.push(`▪︎ عدد الأيام: ${state.days} ${state.days === 1 ? 'يوم' : 'أيام'}`);
-    out.push(`▪︎ السعر: ${fmt(t.base.price)} × ${state.days} = *${fmt(t.baseTotal)} ر.س*`);
     out.push('');
 
     // ---- 2. when ----
@@ -628,11 +617,9 @@
         out.push(l.per === 'day'
           ? `   العدد: ${fmt(l.qty)} ${l.unitAr} × ${state.days} ${state.days === 1 ? 'يوم' : 'أيام'}`
           : `   العدد: ${fmt(l.qty)} ${l.unitAr}`);
-        out.push(`   السعر: ${fmt(l.total)} ر.س`);
       });
-      out.push(`▪︎ *مجموع الإضافات: ${fmt(addonsTotal)} ر.س*`);
     } else {
-      out.push('▪︎ لا توجد إضافات مدفوعة');
+      out.push('▪︎ لا توجد إضافات');
     }
     out.push('');
 
@@ -644,12 +631,11 @@
       DESSERT_GROUPS.forEach((g) => {
         const picked = sweets.filter((l) => l.group === g.id);
         if (!picked.length) return;
-        out.push(`*${g.ar}* (${g.note})`);
+        out.push(`*${g.ar}*`);
         picked.forEach((l) => {
-          out.push(`▪︎ ${l.ar} — ${fmt(l.qty)} ${l.unitAr} × ${fmt(l.price)} = ${fmt(l.total)} ر.س`);
+          out.push(`▪︎ ${l.ar} — ${fmt(l.qty)} ${l.unitAr}`);
         });
       });
-      out.push(`▪︎ *مجموع الحلى: ${fmt(sweetsTotal)} ر.س*`);
     } else {
       out.push('▪︎ لا توجد حلى');
     }
@@ -677,16 +663,8 @@
       out.push('');
     }
 
-    // ---- summary ----
     out.push(HR);
-    out.push('*الملخّص المالي*');
-    out.push(HR);
-    out.push(`▪︎ ${state.service === 'counter' ? 'الباقة' : 'الحافظات'}: ${fmt(t.baseTotal)} ر.س`);
-    out.push(`▪︎ الإضافات: ${fmt(addonsTotal)} ر.س`);
-    out.push(`▪︎ الحلى: ${fmt(sweetsTotal)} ر.س`);
-    out.push('');
-    out.push(`*الإجمالي التقديري: ${fmt(t.grand)} ر.س*`);
-    out.push('_غير شامل ضريبة القيمة المضافة_');
+    out.push('_سنتواصل معك لتأكيد التفاصيل وعرض السعر._');
 
     return out.join('\n');
   }
