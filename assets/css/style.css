@@ -1100,3 +1100,45 @@ body::after {
   color: rgba(237, 230, 218, 0.5);
   margin-block-start: 0.9rem;
 }
+
+/* ---------- الحلى والإضافات: قسم اختياري مطوي ---------- */
+.extras-drop {
+  margin-block-start: 1.8rem;
+  border: 1px solid var(--sand-faint);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.extras-drop > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.1rem;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.98rem;
+  color: var(--cream);
+  transition: background 0.25s;
+}
+.extras-drop > summary::-webkit-details-marker { display: none; }
+.extras-drop > summary:hover { background: rgba(222, 196, 158, 0.05); }
+.extras-drop > summary .en {
+  font-family: var(--font-en);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(237, 230, 218, 0.4);
+  margin-inline-start: 0.4rem;
+}
+.extras-drop .s-cue {
+  font-size: 0.78rem;
+  color: var(--sand);
+  border: 1px solid var(--sand-hair);
+  border-radius: 999px;
+  padding: 0.2rem 0.8rem;
+  white-space: nowrap;
+}
+.extras-drop[open] > summary { border-block-end: 1px solid var(--sand-faint); }
+.extras-drop[open] .s-cue::after { content: ' ▴'; }
+.extras-drop:not([open]) .s-cue::after { content: ' ▾'; }
+.extras-body { padding: 1.2rem; }

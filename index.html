@@ -36,8 +36,6 @@
     <nav class="nav-links">
       <a href="#about">عن الخدمة</a>
       <a href="#packages">الباقات</a>
-      <a href="#more">الحافظات</a>
-      <a href="#sweets">الحلى</a>
       <a href="#book">احجز</a>
     </nav>
     <button class="nav-burger" id="burger" aria-label="القائمة">
@@ -50,8 +48,6 @@
 <div class="sheet" id="sheet">
   <a href="#about">عن الخدمة</a>
   <a href="#packages">الباقات</a>
-  <a href="#more">الحافظات</a>
-  <a href="#sweets">الحلى</a>
   <a href="#book">احجز</a>
 </div>
 
@@ -135,102 +131,87 @@
   </div>
 </section>
 
-<!-- ===================== photo strip ===================== -->
-<section class="strip">
-  <img src="assets/img/counter.jpg" alt="ركن وِكاد أثناء التجهيز" loading="lazy" width="1537" height="1023">
-  <p class="strip-cap">وِكاد حاضر</p>
-</section>
-
-<!-- ===================== flasks + extras ===================== -->
-<section class="section section--alt" id="more">
-  <div class="page" style="display:grid;gap:clamp(3rem,6vw,5rem)">
-    <div>
-      <div class="head reveal">
-        <h2>خدمات الحافظات<span class="en">Flask Service</span></h2>
-        <p>حل عملي للتجمّعات الصغيرة والاجتماعات — قهوة جاهزة ومحفوظة على حرارتها.</p>
-      </div>
-      <div class="rows" id="flask-rows"></div>
-    </div>
-    <div>
-      <div class="head reveal">
-        <h2>خدمات إضافية<span class="en">Additional Services</span></h2>
-      </div>
-      <div class="rows" id="extra-rows"></div>
-    </div>
-  </div>
-</section>
-
-<!-- ===================== desserts ===================== -->
-<section class="section" id="sweets">
-  <div class="page">
-    <div class="head head--center reveal">
-      <h2>أصناف الحلى<span class="en">Dessert Selection</span></h2>
-      <p>تارت بالطبق وكيك طبيعي كبير بالحبة — كلها تُجهَّز طازجة يوم المناسبة.</p>
-    </div>
-    <div class="sweet-groups" id="dessert-grid"></div>
-  </div>
-</section>
-
 <!-- ===================== booking wizard ===================== -->
 <section class="section section--deep" id="book">
   <div class="page">
     <div class="head head--center reveal">
       <h2>احجز ركنك<span class="en">Book Your Counter</span></h2>
-      <p>ست خطوات سريعة، وبنتواصل معك لتأكيد التفاصيل.</p>
+      <p>أربع خطوات سريعة، وبنتواصل معك لتأكيد التفاصيل.</p>
     </div>
 
     <div class="wizard reveal">
       <!-- progress -->
       <div class="steps" role="tablist">
-        <div class="step active" role="tab"><i>1</i><span class="step-label">الخدمة</span></div>
-        <div class="step" role="tab"><i>2</i><span class="step-label">الحجم</span></div>
-        <div class="step" role="tab"><i>3</i><span class="step-label">الحلى والإضافات</span></div>
-        <div class="step" role="tab"><i>4</i><span class="step-label">الموعد والموقع</span></div>
-        <div class="step" role="tab"><i>5</i><span class="step-label">بياناتك</span></div>
-        <div class="step" role="tab"><i>6</i><span class="step-label">التأكيد</span></div>
+        <div class="step active" role="tab"><i>1</i><span class="step-label">بياناتك</span></div>
+        <div class="step" role="tab"><i>2</i><span class="step-label">الخدمة</span></div>
+        <div class="step" role="tab"><i>3</i><span class="step-label">الموعد والموقع</span></div>
+        <div class="step" role="tab"><i>4</i><span class="step-label">التأكيد</span></div>
       </div>
 
       <div id="wizard-body">
         <div class="panes">
 
-          <!-- 1. service -->
+          <!-- 1. بياناتك -->
           <div class="pane on">
-            <h3 class="pane-title">اختر الخدمة<span class="en">Choose the service</span></h3>
+            <h3 class="pane-title">بياناتك<span class="en">Your details</span></h3>
+            <p class="pane-hint">دقيقة وحدة ونكمّل الباقي بسرعة.</p>
+            <div class="grid2">
+              <label class="f">
+                <span>الاسم <em>/ Name</em></span>
+                <input type="text" id="f-name" autocomplete="name" required>
+              </label>
+              <label class="f">
+                <span>رقم الجوال <em>/ Mobile</em></span>
+                <input type="tel" id="f-phone" dir="ltr" placeholder="05XXXXXXXX" autocomplete="tel" required>
+              </label>
+            </div>
+            <div class="opts opts--2" style="margin-block-start:1.2rem">
+              <label class="opt">
+                <input type="radio" name="client" value="individual" checked>
+                <span class="opt-check"></span>
+                <span class="opt-name">أفراد<span class="en">Individual</span></span>
+              </label>
+              <label class="opt">
+                <input type="radio" name="client" value="company">
+                <span class="opt-check"></span>
+                <span class="opt-name">شركة<span class="en">Company</span></span>
+              </label>
+            </div>
+            <div class="grid2" id="company-fields" hidden style="margin-block-start:1rem">
+              <label class="f">
+                <span>اسم الشركة <em>/ Company</em></span>
+                <input type="text" id="f-company" autocomplete="organization">
+              </label>
+              <label class="f">
+                <span>الرقم الضريبي <em>/ VAT no.</em> <em>(اختياري)</em></span>
+                <input type="text" id="f-vat" dir="ltr">
+              </label>
+            </div>
+          </div>
+
+          <!-- 2. الخدمة والحجم -->
+          <div class="pane">
+            <h3 class="pane-title">الخدمة<span class="en">Service</span></h3>
             <p class="pane-hint">وش الأنسب لمناسبتك؟</p>
             <div class="opts opts--2">
               <label class="opt">
                 <input type="radio" name="service" value="counter" checked>
                 <span class="opt-check"></span>
-                <span class="opt-icon"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="712.4 -22.9 1898.0 1153.4">
-<path transform="matrix(1,0,0,-1,1661.3776,648.469)" d="M0 0-140.332 407.687C-159.849 464.397-204.482 508.907-261.248 528.268L-669.063 667.395Z" fill="currentColor"/>
-<path transform="matrix(1,0,0,-1,1661.3776,648.469)" d="M0 0 140.332 407.687C159.848 464.397 204.482 508.907 261.247 528.268L669.063 667.395Z" fill="currentColor"/>
-<path transform="matrix(1,0,0,-1,1661.3776,648.469)" d="M0 0 387.272 189.534C441.143 215.894 504.172 215.889 558.036 189.511L945.019 0Z" fill="currentColor"/>
-<path transform="matrix(1,0,0,-1,1661.3776,648.469)" d="M0 0-387.273 189.534C-441.143 215.894-504.172 215.889-558.037 189.511L-945.019 0Z" fill="currentColor"/>
-<path transform="matrix(1,0,0,-1,1808.6466,795.7053)" d="M0 0-147.282-147.271-294.547-.022-147.265 147.248Z" fill="currentColor"/>
-<path transform="matrix(1,0,0,-1,1753.1298,1034.7102)" d="M0 0-91.761-91.749-183.51-.011-91.75 91.738Z" fill="currentColor"/>
-</svg></span>
                 <span class="opt-name">ركن ضيافة القهوة<span class="en">Coffee Counter</span></span>
-                <span class="opt-desc">ركن كامل مع باريستا وتجهيزات، يخدم من ٢٥ إلى ٣٠٠ كوب.</span>
+                <span class="opt-desc">ركن كامل مع باريستا وتجهيزات.</span>
               </label>
               <label class="opt">
                 <input type="radio" name="service" value="flask">
                 <span class="opt-check"></span>
-                <span class="opt-icon">
-                  <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.3">
-                    <path d="M19 6h10v6l5 8v22a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4V20l5-8V6Z"/>
-                    <path d="M14 26h20M19 6h10"/>
-                  </svg>
-                </span>
                 <span class="opt-name">خدمة الحافظات<span class="en">Flask Service</span></span>
-                <span class="opt-desc">حافظات سعة ٦ لتر، مناسبة للاجتماعات والتجمّعات الصغيرة.</span>
+                <span class="opt-desc">حافظات سعة ٦ لتر — بدون باريستا.</span>
               </label>
             </div>
-          </div>
 
-          <!-- 2. size -->
-          <div class="pane">
-            <h3 class="pane-title"><span id="size-title-ar">عدد الأكواب</span><span class="en" id="size-title-en">Total of cups</span></h3>
-            <p class="pane-hint">اختر الحجم المناسب لعدد ضيوفك.</p>
+            <h4 class="sub-head" style="margin-block-start:1.8rem">
+              <span id="size-title-ar">عدد الأكواب</span>
+              <span class="en" id="size-title-en">Total of cups</span>
+            </h4>
             <div id="size-counter">
               <div class="opts opts--pkg" id="opt-packages"></div>
 
@@ -246,7 +227,7 @@
                 <label class="f" style="margin-block-start:1rem">
                   <span>وش تحتاج بالضبط؟ <em>/ What do you need?</em></span>
                   <textarea id="f-custom-request"
-                    placeholder="اكتب نوع المناسبة، المشروبات المطلوبة، عدد الباريستا، أي تجهيزات خاصة…"></textarea>
+                    placeholder="نوع المناسبة، المشروبات المطلوبة، عدد الباريستا، أي تجهيزات خاصة…"></textarea>
                 </label>
                 <p class="custom-note">نراجع طلبك ونتواصل معك بعرض سعر مفصّل.</p>
               </div>
@@ -254,34 +235,25 @@
             <div id="size-flask" hidden>
               <div class="opts opts--2" id="opt-flasks"></div>
             </div>
+
+            <details class="extras-drop">
+              <summary>
+                <span>حلى وإضافات <span class="en">Desserts &amp; add-ons</span></span>
+                <span class="s-cue">اختياري</span>
+              </summary>
+              <div class="extras-body">
+                <div class="included" id="included-note"></div>
+                <div class="qlist" id="qty-extras"></div>
+                <div id="qty-desserts"></div>
+              </div>
+            </details>
           </div>
 
-          <!-- 3. desserts + add-ons -->
-          <div class="pane">
-            <h3 class="pane-title">الحلى والإضافات<span class="en">Desserts &amp; add-ons</span></h3>
-            <p class="pane-hint">حدّد الكمية اللي تبيها من كل صنف — كلها اختيارية.</p>
-
-            <h4 class="sub-head">الإضافات<span class="en">Add-ons</span></h4>
-            <div class="included" id="included-note"></div>
-            <div class="qlist" id="qty-extras"></div>
-
-            <h4 class="sub-head">الحلى<span class="en">Desserts</span> <span class="sub-note">حدّد العدد من كل صنف</span></h4>
-            <div id="qty-desserts"></div>
-          </div>
-
-          <!-- 4. when + where -->
+          <!-- 3. الموعد والموقع -->
           <div class="pane">
             <h3 class="pane-title">الموعد والموقع<span class="en">Date &amp; location</span></h3>
             <p class="pane-hint">متى تبي الخدمة، ووين بالضبط؟</p>
             <div class="grid2">
-              <label class="f">
-                <span>عدد الأيام <em>/ Days</em></span>
-                <div class="stepper">
-                  <button type="button" id="days-minus" aria-label="إنقاص">−</button>
-                  <input type="number" id="f-days" value="1" min="1" max="30" inputmode="numeric">
-                  <button type="button" id="days-plus" aria-label="زيادة">+</button>
-                </div>
-              </label>
               <label class="f">
                 <span>تاريخ التركيب <em>/ Setup date</em></span>
                 <input type="date" id="f-setup-date" required>
@@ -294,11 +266,18 @@
               <label class="f">
                 <span>تاريخ بدء العمل <em>/ Service date</em></span>
                 <input type="date" id="f-date" required>
-                <span class="f-note">موعد بدء تقديم الضيافة</span>
               </label>
               <label class="f">
                 <span>وقت بدء العمل <em>/ Service time</em></span>
                 <input type="time" id="f-time" value="19:00" required>
+              </label>
+              <label class="f">
+                <span>عدد الأيام <em>/ Days</em></span>
+                <div class="stepper">
+                  <button type="button" id="days-minus" aria-label="إنقاص">−</button>
+                  <input type="number" id="f-days" value="1" min="1" max="30" inputmode="numeric">
+                  <button type="button" id="days-plus" aria-label="زيادة">+</button>
+                </div>
               </label>
               <label class="f">
                 <span>المدينة <em>/ City</em></span>
@@ -310,7 +289,7 @@
               </label>
               <label class="f">
                 <span>وصف الموقع <em>/ Venue</em> <em>(اختياري)</em></span>
-                <input type="text" id="f-venue" placeholder="اسم القاعة أو المبنى ورقم الدور">
+                <input type="text" id="f-venue" placeholder="اسم القاعة أو المبنى">
               </label>
             </div>
 
@@ -330,54 +309,17 @@
               <p class="map-hint">اضغط على الخريطة أو اسحب الدبوس لتحديد المكان بدقة.</p>
               <p class="map-readout" id="map-readout">لم يتم تحديد الموقع بعد.</p>
               <p class="map-hint" id="map-fallback" hidden>
-                تعذّر تحميل الخريطة. اكتب وصف الموقع بالتفصيل في الحقل أعلاه وسنتواصل معك لتأكيده.
+                تعذّر تحميل الخريطة. اكتب وصف الموقع بالتفصيل وسنتواصل معك لتأكيده.
               </p>
             </div>
-          </div>
 
-          <!-- 5. client -->
-          <div class="pane">
-            <h3 class="pane-title">بياناتك<span class="en">Your details</span></h3>
-            <p class="pane-hint">هل الحجز باسم شركة أو باسمك الشخصي؟</p>
-            <div class="opts opts--2" style="margin-block-end:1.6rem">
-              <label class="opt">
-                <input type="radio" name="client" value="individual" checked>
-                <span class="opt-check"></span>
-                <span class="opt-name">أفراد<span class="en">Individual</span></span>
-              </label>
-              <label class="opt">
-                <input type="radio" name="client" value="company">
-                <span class="opt-check"></span>
-                <span class="opt-name">شركة<span class="en">Company</span></span>
-              </label>
-            </div>
-            <div class="grid2">
-              <label class="f">
-                <span>الاسم <em>/ Name</em></span>
-                <input type="text" id="f-name" autocomplete="name" required>
-              </label>
-              <label class="f">
-                <span>رقم الجوال <em>/ Mobile</em></span>
-                <input type="tel" id="f-phone" dir="ltr" placeholder="05XXXXXXXX" autocomplete="tel" required>
-              </label>
-            </div>
-            <div class="grid2" id="company-fields" hidden style="margin-block-start:1rem">
-              <label class="f">
-                <span>اسم الشركة <em>/ Company</em></span>
-                <input type="text" id="f-company" autocomplete="organization">
-              </label>
-              <label class="f">
-                <span>الرقم الضريبي <em>/ VAT no.</em> <em>(اختياري)</em></span>
-                <input type="text" id="f-vat" dir="ltr">
-              </label>
-            </div>
-            <label class="f" style="margin-block-start:1rem">
+            <label class="f" style="margin-block-start:1.2rem">
               <span>ملاحظات <em>/ Notes</em> <em>(اختياري)</em></span>
-              <textarea id="f-notes" placeholder="طلبات خاصة، تعليمات الوصول، تفضيلات المشروبات…"></textarea>
+              <textarea id="f-notes" placeholder="طلبات خاصة، تعليمات الوصول…"></textarea>
             </label>
           </div>
 
-          <!-- 6. review -->
+          <!-- 4. التأكيد -->
           <div class="pane">
             <h3 class="pane-title">مراجعة الطلب<span class="en">Review your order</span></h3>
             <p class="pane-hint">راجع التفاصيل قبل التأكيد.</p>
@@ -424,6 +366,12 @@
       </div>
     </div>
   </div>
+</section>
+
+<!-- ===================== photo strip ===================== -->
+<section class="strip">
+  <img src="assets/img/counter.jpg" alt="ركن وِكاد أثناء التجهيز" loading="lazy" width="1537" height="1023">
+  <p class="strip-cap">وِكاد حاضر</p>
 </section>
 
 <!-- ===================== contact ===================== -->

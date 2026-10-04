@@ -201,6 +201,7 @@
   }
 
   function includedBaristas() {
+    if (state.service === 'flask') return 0;      // الحافظات بلا باريستا
     const base = chosenBase();
     const cups = state.service === 'counter' && base ? base.cups : 0;
     const bigPackage = cups >= BARISTA_RULE.bonusFromCups;
@@ -249,9 +250,9 @@
 
   // ---------- static rendering ----------
   function renderStatic() {
-    $('#chips').innerHTML = DRINKS.map((d) => `<span class="chip">${d}</span>`).join('');
+    if ($('#chips')) $('#chips').innerHTML = DRINKS.map((d) => `<span class="chip">${d}</span>`).join('');
 
-    $('#pkg-grid').innerHTML = PACKAGES.map((p, i) => `
+    if ($('#pkg-grid')) $('#pkg-grid').innerHTML = PACKAGES.map((p, i) => `
       <article class="pkg reveal" style="--d:${i * 70}ms">
         <div class="pkg-label">عــدد الأكـواب<span class="en">Total of cups</span></div>
         <div class="pkg-cups num">${p.cups}</div>
@@ -259,7 +260,7 @@
 
       </article>`).join('');
 
-    $('#flask-rows').innerHTML = FLASKS.map((f) => `
+    if ($('#flask-rows')) $('#flask-rows').innerHTML = FLASKS.map((f) => `
       <div class="row reveal">
         <div>
           <div class="row-name">${f.ar}<span class="en">${f.en}</span></div>
@@ -268,7 +269,7 @@
 
       </div>`).join('');
 
-    $('#extra-rows').innerHTML = EXTRAS.map((e) => `
+    if ($('#extra-rows')) $('#extra-rows').innerHTML = EXTRAS.map((e) => `
       <div class="row reveal">
         <div>
           <div class="row-name">${e.ar}<span class="en">${e.en}</span></div>
@@ -278,7 +279,7 @@
       </div>`).join('');
 
     // dessert menu on the landing page, one block per group
-    $('#dessert-grid').innerHTML = DESSERT_GROUPS.map((g) => `
+    if ($('#dessert-grid')) $('#dessert-grid').innerHTML = DESSERT_GROUPS.map((g) => `
       <section class="sweet-group reveal">
         <header class="sweet-group-head">
           <h3>${g.ar}<span class="en">${g.en}</span></h3>
@@ -393,13 +394,22 @@
   }
 
   function renderIncluded() {
-    const n = includedBaristas();
     const box = $('#included-note');
     if (!box) return;
+
+    // الحافظات تُسلَّم جاهزة بلا طاقم، فلا معنى لحديث الباريستا معها
+    if (state.service === 'flask') {
+      box.innerHTML = `
+        <span class="inc-badge">خدمة الحافظات</span>
+        <span class="inc-text">تُسلَّم جاهزة ومحفوظة على حرارتها — <strong>بدون باريستا</strong>.</span>`;
+      return;
+    }
+
+    const n = includedBaristas();
     box.innerHTML = `
       <span class="inc-badge">مشمول مجاناً</span>
       <span class="inc-text">
-        <strong class="num">${n}</strong> ${n === 1 ? 'باريستا' : 'باريستا'} مع طلبك بدون أي رسوم.
+        <strong class="num">${n}</strong> باريستا مع طلبك بدون أي رسوم.
         ${n === 1
           ? `<em>تصير ٢ تلقائياً مع باقة ${BARISTA_RULE.bonusFromCups} كوب فأكثر وطلب حلى كبير.</em>`
           : '<em>ترقّت إلى باريستين لأن الباقة كبيرة وطلب الحلى كبير.</em>'}
@@ -412,7 +422,7 @@
   }
 
   // ---------- steps ----------
-  const PANES = ['service', 'size', 'items', 'when', 'client', 'review'];
+  const PANES = ['client', 'service', 'when', 'review'];
 
   const STEP_LABELS = {
     service: 'الخدمة', size: 'الحجم', items: 'الحلى والإضافات',
@@ -434,7 +444,7 @@
     $('#btn-next').hidden = last;
     $('#btn-send').hidden = !last;
 
-    if (state.step === 1) syncSizePane();
+    if (PANES[state.step] === 'service') syncSizePane();
     if (PANES[state.step] === 'when') initMap();
 
     const paneName = PANES[state.step];
@@ -458,7 +468,7 @@
   }
 
   function validate() {
-    if (PANES[state.step] === 'size' && isCustom()) {
+    if (PANES[state.step] === 'service' && isCustom()) {
       const cups = Number(state.customCups);
       if (!cups || cups < 10) return 'اكتب عدد الأكواب التقريبي (١٠ على الأقل).';
       if (cups > 5000) return 'عدد الأكواب كبير جداً — تواصل معنا مباشرة.';
