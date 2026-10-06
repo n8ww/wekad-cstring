@@ -45,7 +45,15 @@
   --down: #b3382c;
 
   --font: 'Tajawal', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --radius: 16px;
+  --radius: 14px;
+
+  /* سلّم مسافات واحد تتبعه كل الصفحات، فلا تتزاحم العناصر */
+  --sp-1: 0.5rem;
+  --sp-2: 0.8rem;
+  --sp-3: 1.2rem;
+  --sp-4: 1.8rem;
+  --sp-5: 2.6rem;
+  --gutter: clamp(1rem, 3vw, 2.2rem);
   --shadow: 0 1px 2px rgba(12, 26, 18, 0.04), 0 10px 28px -16px rgba(12, 26, 18, 0.14);
   --shadow-lg: 0 2px 6px rgba(12, 26, 18, 0.06), 0 22px 50px -22px rgba(12, 26, 18, 0.2);
 }
@@ -189,32 +197,71 @@ button, input, select { font: inherit; color: inherit; }
    ========================================================================== */
 .kpi-band { margin-block-end: 1.1rem; }
 .kpi-band > h2, .section-title {
-  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: 0.95rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--ink-muted);
-  margin-block-end: 0.7rem;
+  color: var(--ink);
+  margin-block: var(--sp-5) var(--sp-3);
 }
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); gap: 0.8rem; }
+/* الخط الفاصل يفصل المجموعات بصرياً بلا إطارات إضافية */
+.kpi-band > h2::after, .section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+.page > .section-title:first-child { margin-block-start: var(--sp-1); }
+/* auto-fill لا auto-fit: الأعمدة تبقى بعرض ثابت فلا تتمدّد بطاقة وحيدة
+   على الصف كله، وإيقاع الشبكة يثبت بين المجموعات. */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(204px, 1fr));
+  gap: var(--sp-2);
+}
 
 .kpi {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 1.05rem 1.15rem;
+  padding: var(--sp-3);
   box-shadow: var(--shadow);
-  transition: box-shadow 0.25s, transform 0.25s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-height: 7.2rem;
+  transition: box-shadow 0.25s, border-color 0.25s;
 }
-.kpi:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
-.kpi .k-label { font-size: 0.79rem; color: var(--ink-muted); margin-block-end: 0.45rem; }
-.kpi .k-value { font-size: 1.85rem; font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; }
-.kpi .k-unit { font-size: 0.85rem; font-weight: 400; color: var(--ink-muted); margin-inline-start: 0.25rem; }
-.kpi .k-sub { font-size: 0.76rem; color: var(--ink-muted); margin-block-start: 0.3rem; display: flex; align-items: center; gap: 0.35rem; }
+.kpi:hover { box-shadow: var(--shadow-lg); border-color: #cfe0d7; }
+.kpi .k-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.kpi .k-value { font-size: 1.8rem; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; }
+.kpi .k-unit { font-size: 0.8rem; font-weight: 500; color: var(--ink-muted); margin-inline-start: 0.25rem; }
+/* يُدفع لأسفل البطاقة فتستوي خطوط الأساس عبر الصف مهما اختلف طول النص */
+.kpi .k-sub {
+  margin-block-start: auto;
+  padding-block-start: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
 .delta { font-weight: 700; display: inline-flex; align-items: center; gap: 0.15rem; }
 .delta-up { color: var(--up); }
 .delta-down { color: var(--down); }
-.kpi--hero { grid-column: span 2; background: linear-gradient(140deg, var(--brand-wash), var(--surface) 70%); border-color: #cfe8dc; }
-@media (max-width: 640px) { .kpi--hero { grid-column: span 1; } }
+.kpi--hero {
+  background: linear-gradient(150deg, var(--brand-wash), var(--surface) 72%);
+  border-color: #cfe8dc;
+}
+.kpi--hero .k-label { color: var(--brand-deep); font-weight: 600; }
+.kpi--hero .k-value { font-size: 2rem; color: var(--brand-deep); }
 
 /* ==========================================================================
    لوحات الرسوم
@@ -271,7 +318,7 @@ button, input, select { font: inherit; color: inherit; }
 .toolbar .count { font-size: 0.8rem; color: var(--ink-muted); padding-block-end: 0.55rem; margin-inline-start: auto; }
 
 .table-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+table { width: 100%; min-width: 960px; border-collapse: collapse; font-size: 0.86rem; }
 th {
   text-align: start;
   font-weight: 700;
@@ -359,7 +406,20 @@ tr.row-detail td { background: var(--surface-2); }
 .note-line { margin-block-start: 0.25rem; max-width: 22rem; }
 
 /* أزرار إدارة الطلب */
-.row-actions { display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap; margin-block-start: 0.4rem; }
+/* عمود الحالة يحمل أربعة عناصر؛ بلا عرض أدنى تتراكب وتُقصّ */
+td[data-label] > .pill { margin-block-end: 0.1rem; }
+#orders-table th:last-child, #orders-table td:last-child { min-width: 168px; }
+/* داخل لوحة التفاصيل، مفصولة بخط حتى لا تُضغط بالخطأ */
+.row-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-block-start: var(--sp-3);
+  padding-block-start: var(--sp-2);
+  border-block-start: 1px solid var(--line);
+}
+.row-actions .btn { white-space: nowrap; }
 .btn-danger { border: 1px solid #e6c4bf; background: #fff; color: var(--st-cancelled); }
 .btn-danger:hover { background: #fcecea; }
 
@@ -445,7 +505,7 @@ tr.row-detail td { background: var(--surface-2); }
 .side-foot { margin-block-start: auto; display: grid; gap: 0.5rem; justify-items: start; padding-inline-start: 0.4rem; }
 .side-foot .who { font-size: 0.78rem; word-break: break-all; }
 
-.main { min-width: 0; padding: 0 clamp(1rem, 2.5vw, 2rem) 4rem; }
+.main { min-width: 0; padding: 0 var(--gutter) 5rem; }
 
 .topbar {
   position: sticky;
@@ -453,16 +513,28 @@ tr.row-detail td { background: var(--surface-2); }
   z-index: 20;
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: var(--sp-2);
   flex-wrap: wrap;
-  padding-block: 0.9rem;
-  margin-block-end: 1.2rem;
-  background: color-mix(in srgb, var(--plane) 90%, transparent);
-  backdrop-filter: blur(12px);
+  padding-block: var(--sp-3);
+  margin-block-end: var(--sp-3);
+  background: var(--plane);
   border-block-end: 1px solid var(--line);
 }
-.topbar h1 { font-size: 1.15rem; font-weight: 700; }
-.topbar .spacer { margin-inline-start: auto; }
+.topbar h1 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-inline-end: auto;
+}
+/* المجموعة تلتفّ ككتلة واحدة بدل أن تتفرّق عناصرها على سطرين */
+.topbar-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.topbar .spacer { display: none; }
+.topbar #sync { font-size: 0.74rem; color: var(--ink-muted); white-space: nowrap; }
 .side-toggle { display: none; }
 
 .page { display: none; }
@@ -883,3 +955,114 @@ tr.row-soon td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
 }
 /* السعر الأصلي يُعرض مشطوباً تحت السعر المتفق عليه */
 .was { text-decoration: line-through; opacity: 0.75; }
+
+
+/* ==========================================================================
+   الجدول على الأجهزة الصغيرة
+   دون هذا الحد لا يتسع الجدول لثمانية أعمدة، فيتحوّل كل صف إلى بطاقة
+   يحمل فيها كل حقل اسمه من data-label.
+   ========================================================================== */
+@media (max-width: 860px) {
+  .table-wrap { background: none; border: 0; box-shadow: none; overflow: visible; }
+  #orders-table { min-width: 0; display: block; }
+  #orders-table thead { display: none; }
+  #orders-table tbody { display: grid; gap: var(--sp-2); }
+
+  #orders-table tr.row-main {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.1rem 0.9rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: var(--sp-3);
+  }
+  #orders-table tr.row-main:hover td { background: none; }
+
+  #orders-table td {
+    display: block;
+    border: 0;
+    padding: 0.45rem 0;
+    min-width: 0;
+  }
+  #orders-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--ink-muted);
+    margin-block-end: 0.15rem;
+  }
+  /* رقم الطلب والحالة يأخذان عرض البطاقة كاملاً */
+  #orders-table td:first-child,
+  #orders-table td:last-child { grid-column: 1 / -1; }
+  #orders-table td:last-child { min-width: 0; border-block-start: 1px solid var(--line); margin-block-start: 0.4rem; padding-block-start: 0.7rem; }
+  #orders-table td:first-child { border-block-end: 1px solid var(--line); padding-block-end: 0.7rem; margin-block-end: 0.3rem; }
+
+  #orders-table tr.row-detail { display: block; }
+  #orders-table tr.row-detail td { padding: 0; }
+  #orders-table tr.row-detail td::before { content: none; }
+  tr.row-detail td {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: var(--sp-3) !important;
+  }
+  .row-actions { width: 100%; }
+  .row-actions .btn { flex: 1; }
+}
+
+@media (max-width: 460px) {
+  #orders-table tr.row-main { grid-template-columns: 1fr; }
+}
+
+/* ==========================================================================
+   الشريط العلوي والبطاقات على الشاشات الصغيرة
+   الشريط ملتصق بالأعلى، فكل سطر يلتفّ فيه يقتطع من مساحة القراءة دائماً.
+   ========================================================================== */
+@media (max-width: 760px) {
+  .topbar {
+    padding-block: var(--sp-2);
+    gap: var(--sp-1) var(--sp-2);
+    row-gap: var(--sp-2);
+  }
+  .topbar h1 { font-size: 1.15rem; }
+  .topbar #sync { display: none; }        /* وقت التحديث ليس قراراً، والمساحة أثمن */
+
+  .topbar-tools {
+    width: 100%;
+    flex-wrap: nowrap;
+    gap: var(--sp-1);
+  }
+  /* مدى زمني واحد السطر ينزلق أفقياً بدل أن يلتفّ على ثلاثة أسطر */
+  .ranges {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .ranges::-webkit-scrollbar { display: none; }
+  .range-btn { white-space: nowrap; flex: none; }
+  .topbar-tools .lang-pick { flex: none; max-width: 7.5rem; }
+  .topbar-tools .refresh { flex: none; }
+
+  /* بلا ارتفاع أدنى: البطاقة تأخذ قدر محتواها فقط */
+  .kpi { min-height: 0; padding: var(--sp-2) var(--sp-3); }
+  .kpi .k-value { font-size: 1.6rem; }
+  .kpi--hero .k-value { font-size: 1.9rem; }
+  .kpi .k-sub { margin-block-start: 0.25rem; padding-block-start: 0; }
+
+  .kpi-band > h2, .section-title { margin-block: var(--sp-4) var(--sp-2); font-size: 0.88rem; }
+
+  .toolbar { gap: var(--sp-2); margin-block: var(--sp-3) var(--sp-2); }
+  .toolbar .f { flex: 1 1 8rem; }
+  .toolbar .count { width: 100%; margin-inline-start: 0; padding-block-end: 0; }
+
+  .panels { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 420px) {
+  .kpis { grid-template-columns: 1fr; }
+}

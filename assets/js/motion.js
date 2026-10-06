@@ -8,12 +8,15 @@
   'use strict';
 
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // اللمس له زخم تمرير من النظام؛ أي تنعيم فوقه يُحسّ تأخيراً لا نعومة،
+  // والبارالاكس يُعاد حسابه كلما تغيّر ارتفاع شريط المتصفح أثناء التمرير.
+  const touch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
   const root = document.documentElement;
 
   // ---------- التمرير الناعم ----------
   let lenis = null;
 
-  if (!reduced && typeof window.Lenis === 'function') {
+  if (!reduced && !touch && typeof window.Lenis === 'function') {
     lenis = new window.Lenis({
       duration: 1.05,
       easing: (x) => Math.min(1, 1.001 - (2 ** (-10 * x))),
@@ -81,16 +84,28 @@
       { xPercent: 420, opacity: 1, duration: 1.9, ease: 'power2.inOut' }, 0.35)
     .to(pick('sheen'), { opacity: 0, duration: 0.5 }, '-=0.5');
 
+  // الضوء يمرّ مرة واحدة ثم يُرفع من الصفحة بدل أن يبقى طبقة تُركَّب مع كل إطار
+  intro.eventCallback('onComplete', () => {
+    pick('sheen').forEach((el) => { el.style.display = 'none'; });
+    pick('mark').forEach((el) => { el.style.willChange = 'auto'; });
+    lines.forEach((el) => { el.style.willChange = 'auto'; });
+  });
+
   // ---------- الإزاحة عند النزول ----------
-  if (!window.ScrollTrigger) return;
+  if (!window.ScrollTrigger || touch) return;
 
   const hero = document.querySelector('.hero');
-  const scroller = { trigger: hero, start: 'top top', end: 'bottom top', scrub: true };
 
-  gsap.to(pick('img'), { yPercent: 14, scale: 1.1, ease: 'none', scrollTrigger: scroller });
-  gsap.to(pick('motif'), { yPercent: -18, rotate: 5, ease: 'none', scrollTrigger: scroller });
-  gsap.to('.hero-in', { yPercent: -12, opacity: 0.15, ease: 'none', scrollTrigger: scroller });
-  gsap.to(pick('foot'), { opacity: 0, ease: 'none', scrollTrigger: { ...scroller, end: '30% top' } });
+  // جدول واحد بمشغّل واحد: أربعة ScrollTrigger منفصلة تعني أربع دورات تحديث
+  // في كل إطار تمرير، وهذه واحدة.
+  gsap.timeline({
+    scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub: 0.4 },
+    defaults: { ease: 'none' },
+  })
+    .to(pick('img'), { yPercent: 14, scale: 1.1 }, 0)
+    .to(pick('motif'), { yPercent: -18, rotate: 5 }, 0)
+    .to('.hero-in', { yPercent: -12, opacity: 0.15 }, 0)
+    .to(pick('foot'), { opacity: 0, duration: 0.3 }, 0);
 
   if (lenis) window.ScrollTrigger.addEventListener('refresh', () => lenis.resize());
 })();

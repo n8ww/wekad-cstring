@@ -83,6 +83,8 @@ body::after {
   z-index: 9999;
   pointer-events: none;
   opacity: 0.032;
+  will-change: opacity;
+  transform: translateZ(0);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
@@ -217,8 +219,8 @@ body::after {
   position: absolute;
   inset: -12% -6%;
   background: url('../img/texture-dark.jpg') center/cover no-repeat;
-  filter: saturate(0.8) contrast(1.05);
   will-change: transform;
+  transform: translateZ(0);
 }
 @media (max-width: 760px) {
   /* الصورة الطولية تملأ شاشة الجوال بلا قصّ مفرط */
@@ -229,6 +231,7 @@ body::after {
   position: absolute;
   inset: 0;
   background:
+    linear-gradient(0deg, rgba(26, 33, 24, 0.22), rgba(26, 33, 24, 0.22)),
     linear-gradient(265deg, rgba(16, 23, 16, 0.08) 0%, rgba(16, 23, 16, 0.62) 46%, rgba(16, 23, 16, 0.93) 86%, var(--green-900) 100%),
     linear-gradient(180deg, rgba(16, 23, 16, 0.72) 0%, transparent 30%, rgba(16, 23, 16, 0.88) 100%),
     radial-gradient(130% 100% at 20% 45%, transparent 0%, rgba(16, 23, 16, 0.5) 100%);
@@ -240,8 +243,9 @@ body::after {
   inset-block: -20%;
   inset-inline-start: -40%;
   width: 36%;
-  background: linear-gradient(100deg, transparent, rgba(236, 215, 180, 0.13), transparent);
-  filter: blur(26px);
+  background: linear-gradient(100deg,
+    transparent 0%, rgba(236, 215, 180, 0.02) 25%, rgba(236, 215, 180, 0.11) 50%,
+    rgba(236, 215, 180, 0.02) 75%, transparent 100%);
   opacity: 0;
   pointer-events: none;
 }
@@ -256,8 +260,8 @@ body::after {
   translate: 0 -50%;
   color: var(--sand);
   opacity: 0.05;
-  filter: blur(1.5px);
   pointer-events: none;
+  will-change: transform;
   /* بلا القناع تنتهي أضلاع الرمز بحوافّ حادّة تقرأ كشريط فوق الخلفية */
   -webkit-mask-image: radial-gradient(60% 55% at 58% 50%, #000 0%, rgba(0, 0, 0, 0.55) 55%, transparent 100%);
   mask-image: radial-gradient(60% 55% at 58% 50%, #000 0%, rgba(0, 0, 0, 0.55) 55%, transparent 100%);
@@ -599,7 +603,6 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
   overflow: hidden;
   background: linear-gradient(180deg, rgba(53, 60, 48, 0.34), rgba(43, 51, 41, 0.16));
   box-shadow: 0 24px 60px -34px rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(2px);
 }
 
 /* progress rail */
@@ -1204,3 +1207,20 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
   transition: opacity 0.3s;
 }
 .foot-phone:hover { opacity: 0.75; }
+
+
+/* ==========================================================================
+   أداء التمرير
+   ========================================================================== */
+/* الأقسام تحت الطيّة لا تُرسَم حتى تقترب، فيخفّ عمل المتصفح عند كل إطار. */
+.section--alt,
+.section:not(#book),
+.strip,
+.foot { content-visibility: auto; contain-intrinsic-size: auto 600px; }
+
+/* على الأجهزة اللمسية يتعارك التمرير الناعم مع زخم النظام، والبارالاكس
+   يُعاد حسابه مع كل تغيّر في ارتفاع شريط المتصفح. كلاهما يُطفأ هناك. */
+@media (hover: none) and (pointer: coarse) {
+  .hero-img,
+  .hero-motif { will-change: auto; }
+}

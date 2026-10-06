@@ -957,17 +957,17 @@
       const items = itemsOf(r);
       return `
       <tr class="row-main">
-        <td><span class="ref">${esc(r.ref)}</span><div class="muted">${dateTime(r.created_at)}</div></td>
-        <td>${esc(r.customer_name || '—')}
+        <td data-label="${t('thRef')}"><span class="ref">${esc(r.ref)}</span><div class="muted">${dateTime(r.created_at)}</div></td>
+        <td data-label="${t('thCustomer')}">${esc(r.customer_name || '—')}
             <div class="muted">${r.client_type === 'company' ? esc(r.company || t('company')) : t('individual')}</div></td>
-        <td><a href="tel:${esc(r.phone)}" dir="ltr">${esc(r.phone || '—')}</a></td>
-        <td>${esc(r.package_name || '—')}<div class="muted">${esc(r.days)} يوم</div></td>
-        <td class="tab"><b>${dateOnly(r.setup_date || r.event_date)}</b> · ${esc(r.setup_time || '—')}
+        <td data-label="${t('thPhone')}"><a href="tel:${esc(r.phone)}" dir="ltr">${esc(r.phone || '—')}</a></td>
+        <td data-label="${t('thPackage')}">${esc(r.package_name || '—')}<div class="muted">${esc(r.days)} يوم</div></td>
+        <td class="tab" data-label="${t('thSetupWork')}"><b>${dateOnly(r.setup_date || r.event_date)}</b> · ${esc(r.setup_time || '—')}
             <div class="muted">${t('work')} ${dateOnly(r.event_date)} · ${esc(r.event_time || '')}</div></td>
-        <td>${esc(r.city || '—')}<div class="muted">${esc(r.district || '')}${maps ? ` · <a href="${maps}" target="_blank" rel="noopener">خريطة</a>` : ''}</div></td>
-        <td class="tab"><b>${n2(r.total)}</b>${discountPill(r)}
+        <td data-label="${t('thLocation')}">${esc(r.city || '—')}<div class="muted">${esc(r.district || '')}${maps ? ` · <a href="${maps}" target="_blank" rel="noopener">خريطة</a>` : ''}</div></td>
+        <td class="tab" data-label="${t('thTotal')}"><b>${n2(r.total)}</b>${discountPill(r)}
             ${discountOf(r) ? `<div class="muted was">${n2(r.price_before)}</div>` : ''}</td>
-        <td>
+        <td data-label="${t('thStatus')}">
           <span class="pill" style="background:color-mix(in srgb, ${stColor} 14%, transparent);color:${stColor}">
             <i style="background:${stColor}"></i>${stName}</span>
           <div style="margin-block-start:.4rem;display:flex;gap:.4rem;align-items:center">
@@ -976,12 +976,6 @@
                 `<option value="${k}" ${r.status === k ? 'selected' : ''}>${statusName(k)}</option>`).join('')}
             </select>
             <button class="detail-toggle" data-toggle="${r.id}">${t('details')}</button>
-          </div>
-          <div class="row-actions">
-            ${r.status !== 'cancelled'
-              ? `<button class="btn btn-danger btn-sm" data-cancel="${r.id}" data-ref="${esc(r.ref)}">${t('cancelOrder')}</button>`
-              : ''}
-            <button class="btn btn-ghost btn-sm" data-delete="${r.id}" data-ref="${esc(r.ref)}">${t('deleteOrder')}</button>
           </div>
         </td>
       </tr>
@@ -1007,6 +1001,12 @@
             <li><span>${esc(i.name)} — <span class="num">${esc(i.qty)}</span> ${esc(i.unit)}</span>
                 <span class="num">${n2(i.total)} ر.س</span></li>`).join('')}</ul>` : ''}
           ${fillForm(r)}
+          <div class="row-actions">
+            ${r.status !== 'cancelled'
+              ? `<button class="btn btn-danger btn-sm" data-cancel="${r.id}" data-ref="${esc(r.ref)}">${t('cancelOrder')}</button>`
+              : ''}
+            <button class="btn btn-ghost btn-sm" data-delete="${r.id}" data-ref="${esc(r.ref)}">${t('deleteOrder')}</button>
+          </div>
         </td>
       </tr>`;
     }).join('');
