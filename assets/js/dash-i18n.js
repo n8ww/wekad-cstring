@@ -117,6 +117,10 @@
       fDays: 'عدد الأيام', fDistrict: 'الحي', fVenue: 'وصف الموقع',
       fBefore: 'السعر قبل الخصم (ر.س)', fTotal: 'السعر بعد الخصم (ر.س)', fSaveDetails: 'حفظ التفاصيل',
       discount: 'الخصم', dBefore: 'السعر قبل الخصم', dSaved: 'قيمة الخصم',
+      autoBlocked: 'أُقفل تلقائياً بحجز', autoPill: 'محجوز', toDate: 'إلى تاريخ',
+      phSearch: 'اكتب للبحث…', phPass: '٦ أحرف فأكثر',
+      aMenu: 'القائمة', aRange: 'المدى الزمني',
+      closedHintAuto: 'اليوم الذي يُحجز يُقفل تلقائياً — افتحه من هنا متى شئت.',
       kDiscounted: 'طلبات عليها خصم', sAvgDiscount: 'متوسط الخصم {p}%',
       notSet: 'بانتظار الاتصال',
 
@@ -272,6 +276,10 @@
       fDays: 'Days', fDistrict: 'District', fVenue: 'Venue details',
       fBefore: 'Price before discount (SAR)', fTotal: 'Price after discount (SAR)', fSaveDetails: 'Save details',
       discount: 'Discount', dBefore: 'Price before discount', dSaved: 'Amount saved',
+      autoBlocked: 'Closed automatically by a booking', autoPill: 'Booked', toDate: 'To date',
+      phSearch: 'Type to search…', phPass: '6 characters or more',
+      aMenu: 'Menu', aRange: 'Date range',
+      closedHintAuto: 'A booked day closes itself — reopen it here whenever you want.',
       kDiscounted: 'Discounted orders', sAvgDiscount: 'Average discount {p}%',
       notSet: 'Pending call',
       arrivalTime: 'Arrival time for setup', serviceStart: 'Service starts',
@@ -417,6 +425,10 @@
       fDays: 'Bilang ng araw', fDistrict: 'Distrito', fVenue: 'Detalye ng lugar',
       fBefore: 'Presyo bago ang diskwento (SAR)', fTotal: 'Presyo pagkatapos ng diskwento (SAR)', fSaveDetails: 'I-save ang detalye',
       discount: 'Diskwento', dBefore: 'Presyo bago ang diskwento', dSaved: 'Halagang natipid',
+      autoBlocked: 'Awtomatikong isinara ng booking', autoPill: 'Naka-book', toDate: 'Hanggang petsa',
+      phSearch: 'Mag-type para maghanap…', phPass: '6 na karakter pataas',
+      aMenu: 'Menu', aRange: 'Saklaw ng petsa',
+      closedHintAuto: 'Ang araw na may booking ay kusang nagsasara — buksan ito dito kahit kailan.',
       kDiscounted: 'May diskwento', sAvgDiscount: 'Karaniwang diskwento {p}%',
       notSet: 'Hinihintay ang tawag',
       arrivalTime: 'Oras ng pagdating para sa setup', serviceStart: 'Simula ng serbisyo',
@@ -536,6 +548,9 @@
     });
     root.querySelectorAll('[data-i18n-html]').forEach((el) => {
       el.innerHTML = t(el.dataset.i18nHtml);
+    });
+    root.querySelectorAll('[data-i18n-aria]').forEach((el) => {
+      el.setAttribute('aria-label', t(el.dataset.i18nAria));
     });
   }
 

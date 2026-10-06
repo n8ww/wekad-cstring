@@ -593,12 +593,17 @@ td[data-label] > .pill { margin-block-end: 0.1rem; }
     inset-inline-start: 0;
     width: 250px;
     z-index: 60;
-    transform: translateX(110%);
+    /* translateX فيزيائي ولا ينقلب مع الاتجاه: مع inset-inline-start تختبئ
+       القائمة يميناً في العربي، وفي الإنجليزي كانت تُدفع إلى وسط الشاشة
+       فتغطّي المحتوى. كل اتجاه يأخذ إشارته. */
+    transform: translateX(-110%);
     transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: var(--shadow-lg);
     background: var(--surface);
   }
-  .side.open { transform: none; }
+  html[dir='rtl'] .side { transform: translateX(110%); }
+  .side.open,
+  html[dir='rtl'] .side.open { transform: none; }
   .side-toggle { display: inline-flex; }
   .main { padding-inline: 1rem; }
 }
@@ -1068,3 +1073,6 @@ tr.row-soon td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
 @media (max-width: 420px) {
   .kpis { grid-template-columns: 1fr; }
 }
+
+/* يوم أقفله حجز، لا المدير — يُميَّز حتى لا يُفتح بالخطأ */
+.pill-auto { background: var(--brand-wash); color: var(--brand-deep); }

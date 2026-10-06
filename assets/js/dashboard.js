@@ -27,10 +27,13 @@
     { key: 'installed', label: 'jsInstalled' },
     { key: 'finished',  label: 'jsFinished' },
   ];
-  const weekdayName = (index) => new Intl.DateTimeFormat(
-    { ar: 'ar-SA-u-ca-gregory', en: 'en-GB', tl: 'fil-PH' }[window.WekadI18n.lang] || 'ar-SA-u-ca-gregory',
-    { weekday: 'long' },
-  ).format(new Date(Date.UTC(2024, 0, 7 + index)));
+  /** تقويم ميلادي بأرقام لاتينية في كل اللغات، حتى لا تختلط التواريخ. */
+  const locale = () => ({
+    ar: 'ar-SA-u-ca-gregory-nu-latn', en: 'en-GB', tl: 'fil-PH',
+  }[window.WekadI18n.lang] || 'ar-SA-u-ca-gregory-nu-latn');
+
+  const weekdayName = (index) => new Intl.DateTimeFormat(locale(), { weekday: 'long' })
+    .format(new Date(Date.UTC(2024, 0, 7 + index)));
 
   let session = null;
   let role = null;          // admin | staff
@@ -54,7 +57,7 @@
   function dateTime(iso) {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '—';
-    return new Intl.DateTimeFormat('ar-SA-u-ca-gregory-nu-latn', {
+    return new Intl.DateTimeFormat(locale(), {
       day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
     }).format(d);
   }
@@ -308,6 +311,26 @@
   let checklist = [];
 
   /** نص البند بلغة المستخدم، مع الرجوع للعربية. */
+  const cat = () => window.WekadCatalog;
+
+  /**
+   * اسم الباقة بلغة العرض. الباقات العادية رقم أكواب فقط، والحافظات
+   * والباقة المخصصة لها أسماء في الكتالوج.
+   */
+  function packageLabel(r) {
+    const id = r.package_id;
+    if (r.custom_cups) {
+      return `${cat() ? cat().name('custom') : 'باقة مخصصة'} — ${n0(r.custom_cups)} ${unitName2('كوب')}`;
+    }
+    if (id && /^p\d+$/.test(id)) return `${id.slice(1)} ${unitName2('كوب')}`;
+    if (id && cat() && cat().NAMES[id]) return cat().name(id);
+    return r.package_name || '—';
+  }
+  /** اسم الصنف بلغة العرض؛ الاسم المحفوظ احتياطي إن كان المعرّف مجهولاً. */
+  const itemName = (it) => (cat() ? cat().name(it.id, it.name) : (it.name || it.id));
+  const unitName2 = (u) => (cat() ? cat().unit(u) : (u || ''));
+  const cityName = (c) => (cat() ? cat().city(c) : (c || ''));
+
   function itemLabel(it) {
     const lang = window.WekadI18n.lang;
     return (lang === 'en' && it.label_en) || (lang === 'tl' && it.label_tl) || it.label_ar;
@@ -488,11 +511,18 @@
       ? `<p class="empty">${t('noClosedDays')}</p>`
       : rows.map((r) => {
           const past = r.day < today;
+          const auto = r.reason === 'booked';
+          // أي طلب أقفل هذا اليوم؟ يُستدلّ عليه من تاريخ المناسبة
+          const refs = auto
+            ? allOrders.filter((o) => o.event_date === r.day && o.status !== 'cancelled')
+                .map((o) => o.ref).join(' · ')
+            : '';
           return `
           <div class="staff-row${past ? ' is-past' : ''}">
             <span class="staff-mail tab">${esc(r.day)}</span>
-            <span class="staff-state">${esc(r.reason || '—')}</span>
-            ${past ? `<span class="pill pill-staff">${t('pastPill')}</span>` : `<span class="pill pill-closed">${t('closedPill')}</span>`}
+            <span class="staff-state">${auto ? `${t('autoBlocked')}${refs ? ` — ${esc(refs)}` : ''}` : esc(r.reason || '—')}</span>
+            ${past ? `<span class="pill pill-staff">${t('pastPill')}</span>`
+                   : `<span class="pill ${auto ? 'pill-auto' : 'pill-closed'}">${auto ? t('autoPill') : t('closedPill')}</span>`}
             <button class="btn btn-ghost btn-sm" data-unblock="${esc(r.day)}">${t('openDay')}</button>
           </div>`;
         }).join('');
@@ -734,7 +764,7 @@
     const step = orderBuckets.length > 20 ? 5 : 2;
 
     $('#chart-daily').innerHTML = orderBuckets.map((b, i) => `
-      <div class="col" title="${b.date.toISOString().slice(0, 10)} · ${visitorBuckets[i]} زائر · ${b.count} طلب · ${n0(b.revenue)} ر.س">
+      <div class="col" title="${b.date.toISOString().slice(0, 10)} · ${visitorBuckets[i]} ${t('visitorsLegend')} · ${b.count} ${t('ordersLegend')} · ${n0(b.revenue)} ${t('sar')}">
         <span class="pair">
           <span class="col-bar bar-visitors" style="height:${(visitorBuckets[i] / max) * 120}px"></span>
           <span class="col-bar bar-orders" style="height:${(b.count / max) * 120}px"></span>
@@ -754,7 +784,7 @@
     if (!months.length) { $('#chart-monthly').innerHTML = `<p class="empty">${t('noData')}</p>`; return; }
     const max = Math.max(1, ...months.map(([, v]) => v.revenue));
     $('#chart-monthly').innerHTML = months.map(([key, v]) => `
-      <div class="col" title="${key} · ${n0(v.revenue)} ر.س · ${v.count} طلب">
+      <div class="col" title="${key} · ${n0(v.revenue)} ${t('sar')} · ${v.count} ${t('ordersLegend')}">
         <span class="col-bar" style="height:${(v.revenue / max) * 120}px"></span>
         <span class="col-lbl">${key.slice(5)}</span>
       </div>`).join('');
@@ -961,10 +991,10 @@
         <td data-label="${t('thCustomer')}">${esc(r.customer_name || '—')}
             <div class="muted">${r.client_type === 'company' ? esc(r.company || t('company')) : t('individual')}</div></td>
         <td data-label="${t('thPhone')}"><a href="tel:${esc(r.phone)}" dir="ltr">${esc(r.phone || '—')}</a></td>
-        <td data-label="${t('thPackage')}">${esc(r.package_name || '—')}<div class="muted">${esc(r.days)} يوم</div></td>
+        <td data-label="${t('thPackage')}">${esc(packageLabel(r))}<div class="muted">${esc(r.days)} ${unitName2('يوم')}</div></td>
         <td class="tab" data-label="${t('thSetupWork')}"><b>${dateOnly(r.setup_date || r.event_date)}</b> · ${esc(r.setup_time || '—')}
             <div class="muted">${t('work')} ${dateOnly(r.event_date)} · ${esc(r.event_time || '')}</div></td>
-        <td data-label="${t('thLocation')}">${esc(r.city || '—')}<div class="muted">${esc(r.district || '')}${maps ? ` · <a href="${maps}" target="_blank" rel="noopener">خريطة</a>` : ''}</div></td>
+        <td data-label="${t('thLocation')}">${esc(cityName(r.city) || '—')}<div class="muted">${esc(r.district || '')}${maps ? ` · <a href="${maps}" target="_blank" rel="noopener">${t('openMap')}</a>` : ''}</div></td>
         <td class="tab" data-label="${t('thTotal')}"><b>${n2(r.total)}</b>${discountPill(r)}
             ${discountOf(r) ? `<div class="muted was">${n2(r.price_before)}</div>` : ''}</td>
         <td data-label="${t('thStatus')}">
@@ -988,18 +1018,18 @@
             <div><dt>${t('dDistrict')}</dt><dd>${esc(r.district || '—')}</dd></div>
             <div><dt>${t('dBaristas')}</dt><dd class="num">${esc(r.included_baristas)}</dd></div>
             ${discountOf(r) ? `
-              <div><dt>${t('dBefore')}</dt><dd class="num">${n2(r.price_before)} ر.س</dd></div>
+              <div><dt>${t('dBefore')}</dt><dd class="num">${n2(r.price_before)} ${t('sar')}</dd></div>
               <div><dt>${t('discount')}</dt><dd class="num">${discountOf(r).pct}%</dd></div>
-              <div><dt>${t('dSaved')}</dt><dd class="num">${n2(discountOf(r).saved)} ر.س</dd></div>` : ''}
-            <div><dt>${t('dAddons')}</dt><dd class="num">${n2(r.addons_total)} ر.س</dd></div>
-            <div><dt>${t('dSweets')}</dt><dd class="num">${n2(r.desserts_total)} ر.س</dd></div>
+              <div><dt>${t('dSaved')}</dt><dd class="num">${n2(discountOf(r).saved)} ${t('sar')}</dd></div>` : ''}
+            <div><dt>${t('dAddons')}</dt><dd class="num">${n2(r.addons_total)} ${t('sar')}</dd></div>
+            <div><dt>${t('dSweets')}</dt><dd class="num">${n2(r.desserts_total)} ${t('sar')}</dd></div>
             ${r.vat ? `<div><dt>${t('dVat')}</dt><dd class="num">${esc(r.vat)}</dd></div>` : ''}
             ${r.custom_request ? `<div style="grid-column:1/-1"><dt>${t('customReq')}</dt><dd>${esc(r.custom_request)}</dd></div>` : ''}
             ${r.notes ? `<div style="grid-column:1/-1"><dt>${t('dNotes')}</dt><dd>${esc(r.notes)}</dd></div>` : ''}
           </dl>
           ${items.length ? `<ul class="items-list">${items.map((i) => `
-            <li><span>${esc(i.name)} — <span class="num">${esc(i.qty)}</span> ${esc(i.unit)}</span>
-                <span class="num">${n2(i.total)} ر.س</span></li>`).join('')}</ul>` : ''}
+            <li><span>${esc(itemName(i))} — <span class="num">${esc(i.qty)}</span> ${esc(unitName2(i.unit))}${i.total_pieces ? ` · ${n0(i.total_pieces)} ${unitName2('حبة')}` : ''}</span>
+                <span class="num">${n2(i.total)} ${t('sar')}</span></li>`).join('')}</ul>` : ''}
           ${fillForm(r)}
           <div class="row-actions">
             ${r.status !== 'cancelled'
@@ -1096,7 +1126,7 @@
       kpi(t('kSetups'), n0(rows.length), '', t('sFromToday')),
       kpi(t('kWithin7'), n0(next7), '', t('sGetReady')),
       kpi(t('kNextSetup'), rows[0] ? dateOnly(keyOf(rows[0])) : '—', '',
-        rows[0] ? `${esc(rows[0].city)} · ${t('sArrival', { t: esc(rows[0].setup_time || '') })}` : ''),
+        rows[0] ? `${esc(cityName(rows[0].city))} · ${t('sArrival', { t: esc(rows[0].setup_time || '') })}` : ''),
     ].join('');
 
     $('#sch-count').textContent = t('eventsCount', { n: shown.length });
@@ -1202,7 +1232,7 @@
             <div class="job-grid">
               <div class="jf">
                 <span class="jf-label">${t('cityDistrict')}</span>
-                <span class="jf-value">${esc(r.city || '—')}${r.district ? ` — ${esc(r.district)}` : ''}</span>
+                <span class="jf-value">${esc(cityName(r.city) || '—')}${r.district ? ` — ${esc(r.district)}` : ''}</span>
               </div>
               <div class="jf">
                 <span class="jf-label">${t('venue')}</span>
@@ -1210,7 +1240,7 @@
               </div>
               <div class="jf">
                 <span class="jf-label">${t('serviceNeeded')}</span>
-                <span class="jf-value">${esc(r.package_name || '—')}</span>
+                <span class="jf-value">${esc(packageLabel(r))}</span>
                 <span class="jf-sub">${esc(r.included_baristas)} ${t('baristas')}</span>
               </div>
               <div class="jf">
@@ -1223,8 +1253,8 @@
               <div class="job-items">
                 <span class="ji-title">${t('desserts')}</span>
                 <ul class="ji-list">
-                  ${sweets.map((i) => `<li><span>${esc(i.name)}</span>
-                    <b class="tab">${esc(i.qty)} ${esc(i.unit || '')}</b></li>`).join('')}
+                  ${sweets.map((i) => `<li><span>${esc(itemName(i))}</span>
+                    <b class="tab">${esc(i.qty)} ${esc(unitName2(i.unit))}${i.total_pieces ? ` · ${n0(i.total_pieces)} ${unitName2('حبة')}` : ''}</b></li>`).join('')}
                 </ul>
               </div>` : ''}
 
@@ -1232,8 +1262,8 @@
               <div class="job-items">
                 <span class="ji-title">${t('addonsList')}</span>
                 <ul class="ji-list">
-                  ${addons.map((i) => `<li><span>${esc(i.name)}</span>
-                    <b class="tab">${esc(i.qty)} ${esc(i.unit || '')}</b></li>`).join('')}
+                  ${addons.map((i) => `<li><span>${esc(itemName(i))}</span>
+                    <b class="tab">${esc(i.qty)} ${esc(unitName2(i.unit))}</b></li>`).join('')}
                 </ul>
               </div>` : ''}
 
@@ -1277,8 +1307,9 @@
     if (!select) return;
     const current = select.value;
     const cities = [...new Set(allOrders.map((r) => r.city).filter(Boolean))].sort();
-    select.innerHTML = '<option value="">الكل</option>'
-      + cities.map((c) => `<option ${c === current ? 'selected' : ''}>${esc(c)}</option>`).join('');
+    // القيمة تبقى الاسم العربي المحفوظ لأن المقارنة تتم عليه؛ المعروض مترجم
+    select.innerHTML = `<option value="">${t('all')}</option>`
+      + cities.map((c) => `<option value="${esc(c)}" ${c === current ? 'selected' : ''}>${esc(cityName(c))}</option>`).join('');
   }
 
   // ---------- الشاشات ----------
@@ -1296,7 +1327,7 @@
 
   function stampSync() {
     lastSync = new Date();
-    const text = `${t('lastSync')} ${new Intl.DateTimeFormat('ar-SA-u-ca-gregory-nu-latn',
+    const text = `${t('lastSync')} ${new Intl.DateTimeFormat(locale(),
       { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(lastSync)}`;
     ['#sync', '#sync-staff'].forEach((sel) => { const el = $(sel); if (el) el.textContent = text; });
   }
@@ -1336,7 +1367,7 @@
       $('#dash').hidden = !admin;
       $('#staff-view').hidden = admin;
       $$('.who-email').forEach((el) => { el.textContent = session?.user?.email ?? ''; });
-      $$('.role-badge').forEach((el) => { el.textContent = admin ? 'مدير' : 'موظف'; });
+      $$('.role-badge').forEach((el) => { el.textContent = admin ? t('admin') : t('staff'); });
 
       if (!admin) {
         schedule = await fetchSchedule();
@@ -1454,6 +1485,7 @@
     document.addEventListener('wekad:lang', () => {
       if ($('#dash') && !$('#dash').hidden) {
         renderKpis(); renderPanels(); renderTable();
+        fillCityFilter();                 // أسماء المدن و"الكل" تتبع اللغة
         if (currentPage() === 'users') renderStaff();
         if (currentPage() === 'closed') renderBlocked();
         showPage(currentPage());

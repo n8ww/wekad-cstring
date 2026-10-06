@@ -124,6 +124,9 @@
 
   const blockedDays = new Map();   // 'YYYY-MM-DD' -> سبب الإقفال
 
+  // المُشغّل في قاعدة البيانات يكتب 'booked' لليوم المحجوز؛ لا يُعرض كما هو
+  const blockReason = (why) => (why === 'booked' ? 'محجوز' : why);
+
   /** الأيام التي أقفلها المدير من اللوحة. فشل التحميل لا يمنع الحجز. */
   async function loadBlockedDays() {
     const cfg = window.WEKAD_CONFIG || {};
@@ -393,7 +396,7 @@
       const past = iso <= today;
       const blocked = blockedDays.has(iso);
       const picked = iso === state.date;
-      const why = blocked ? blockedDays.get(iso) : '';
+      const why = blocked ? blockReason(blockedDays.get(iso)) : '';
       const cls = ['cal-day'];
       if (past) cls.push('is-past');
       if (blocked) cls.push('is-blocked');
@@ -477,7 +480,7 @@
       if (!state.date) return 'اختر يوم المناسبة من التقويم.';
       if (state.date <= today) return 'اختر يوماً بعد اليوم.';
       if (blockedDays.has(state.date)) {
-        const why = blockedDays.get(state.date);
+        const why = blockReason(blockedDays.get(state.date));
         return `هذا اليوم غير متاح${why ? ` — ${why}` : ''}. اختر يوماً آخر.`;
       }
     }
