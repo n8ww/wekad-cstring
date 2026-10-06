@@ -26,6 +26,7 @@
 
   --font-ar: 'Tajawal', system-ui, sans-serif;
   --font-en: 'Cormorant Garamond', Georgia, serif;
+  --font-num: 'Tajawal', system-ui, sans-serif;
 
   /* Calm surfaces: tinted fills and hairlines instead of hard outlined boxes. */
   --surface:   rgba(236, 215, 180, 0.045);
@@ -73,7 +74,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 img, svg { display: block; max-width: 100%; }
 
 /* Latin numerals read better than Arabic-Indic for prices in this layout. */
-.num { font-family: var(--font-en); font-variant-numeric: lining-nums; direction: ltr; unicode-bidi: isolate; }
+.num {
+  font-family: var(--font-num);
+  font-weight: 500;
+  font-variant-numeric: lining-nums tabular-nums;
+  direction: ltr;
+  unicode-bidi: isolate;
+  letter-spacing: 0;
+}
 
 /* Fine film grain keeps the large flat greens from banding. */
 body::after {
@@ -375,10 +383,10 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
   border-inline-start: 1px solid var(--hair-soft);
 }
 .hero-facts b {
-  font-family: var(--font-en);
+  font-family: var(--font-num);
   font-variant-numeric: lining-nums;
-  font-size: 1.55rem;
-  font-weight: 300;
+  font-size: 1.6rem;
+  font-weight: 500;
   line-height: 1;
   color: var(--sand);
 }
@@ -504,7 +512,7 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
 }
 
 .facts { display: flex; gap: 2.4rem; margin-block-start: 2.2rem; flex-wrap: wrap; }
-.fact strong { display: block; font-family: var(--font-en); font-size: 2.1rem; color: var(--sand); font-weight: 400; }
+.fact strong { display: block; font-family: var(--font-num); font-size: 2.1rem; color: var(--sand); font-weight: 500; font-variant-numeric: lining-nums; }
 .fact span { font-size: 0.85rem; color: rgba(237, 230, 218, 0.55); }
 
 @media (max-width: 860px) { .about { grid-template-columns: 1fr; } }
@@ -523,11 +531,15 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
 .chip:hover { background: var(--sand-faint); }
 
 /* ---------- package cards ---------- */
+/* خمس باقات: auto-fit يعطي أربعة أعمدة في العروض المتوسطة فتبقى بطاقة
+   يتيمة في صف. أعمدة صريحة (١ / ٣ / ٥) تقسم الخمسة دائماً بلا يتيمة. */
 .pkgs {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: 1fr;
   gap: 1.1rem;
 }
+@media (min-width: 560px)  { .pkgs { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1120px) { .pkgs { grid-template-columns: repeat(5, 1fr); } }
 .pkg {
   position: relative;
   background: var(--surface);
@@ -552,7 +564,7 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
 
 .pkg-label { font-size: 0.8rem; color: rgba(237, 230, 218, 0.55); letter-spacing: 0.04em; }
 .pkg-label .en { display: block; font-family: var(--font-en); letter-spacing: 0.14em; text-transform: uppercase; font-size: 0.7rem; opacity: 0.75; }
-.pkg-cups { font-family: var(--font-en); font-size: 3.4rem; line-height: 1; color: var(--cream); font-weight: 300; margin-block: 0.5rem 0.2rem; }
+.pkg-cups { font-family: var(--font-num); font-size: 3.2rem; line-height: 1; color: var(--cream); font-weight: 500; font-variant-numeric: lining-nums; letter-spacing: -0.02em; margin-block: 0.5rem 0.2rem; }
 .pkg-cups-unit { font-size: 0.85rem; color: rgba(237, 230, 218, 0.5); }
 
 /* ---------- flask + extras rows ---------- */
@@ -630,9 +642,11 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
   margin-block-end: 0.45rem;
   border: 1px solid var(--hair);
   border-radius: 50%;
-  font-family: var(--font-en);
+  font-family: var(--font-num);
   font-style: normal;
-  font-size: 0.85rem;
+  font-weight: 500;
+  font-variant-numeric: lining-nums;
+  font-size: 0.9rem;
   transition: all 0.45s var(--ease);
 }
 .step.active { color: var(--sand); }
@@ -704,7 +718,7 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
 
 .opt-name { font-size: 1.05rem; color: var(--cream); }
 .opt-name .en { display: block; font-family: var(--font-en); font-size: 0.82rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(237, 230, 218, 0.45); margin-block-start: 0.15rem; }
-.opt-big { font-family: var(--font-en); font-size: 2.6rem; line-height: 1; color: var(--cream); font-weight: 300; }
+.opt-big { font-family: var(--font-num); font-size: 2.4rem; line-height: 1; color: var(--cream); font-weight: 500; font-variant-numeric: lining-nums; letter-spacing: -0.02em; }
 .opt-meta { font-size: 0.8rem; color: rgba(237, 230, 218, 0.5); margin-block-start: 0.35rem; }
 .opt-desc { font-size: 0.85rem; color: rgba(237, 230, 218, 0.55); margin-block-start: 0.6rem; line-height: 1.55; }
 
@@ -747,6 +761,9 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
 .stepper button:hover { background: var(--sand-faint); }
 .stepper input {
   width: 84px;
+  font-family: var(--font-num);
+  font-weight: 500;
+  font-variant-numeric: lining-nums tabular-nums;
   border: 0;
   border-inline: 1px solid var(--sand-faint);
   background: rgba(16, 23, 16, 0.45);
@@ -780,7 +797,7 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
   background: rgba(16, 23, 16, 0.3);
 }
 .total-bar .label { font-size: 0.85rem; color: rgba(237, 230, 218, 0.55); }
-.total-bar .value { display: flex; align-items: center; gap: 0.35rem; color: var(--sand); font-family: var(--font-en); font-size: 1.75rem; }
+.total-bar .value { display: flex; align-items: center; gap: 0.35rem; color: var(--sand); font-family: var(--font-num); font-weight: 500; font-size: 1.6rem; }
 .total-bar .value .sar { width: 0.8em; height: 0.8em; }
 .wiz-actions { display: flex; gap: 0.7rem; margin-inline-start: auto; }
 @media (max-width: 560px) {
@@ -991,7 +1008,7 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
   color: #a9dfb3;
 }
 .inc-text { flex: 1; min-width: 12rem; color: rgba(237, 230, 218, 0.8); line-height: 1.7; }
-.inc-text strong { color: #a9dfb3; font-family: var(--font-en); font-size: 1.05rem; }
+.inc-text strong { color: #a9dfb3; font-family: var(--font-num); font-weight: 500; font-size: 1.05rem; }
 .inc-text em {
   display: block;
   font-style: normal;
@@ -1103,6 +1120,7 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
 }
 .cal-title {
   font-variant-numeric: lining-nums;
+  font-weight: 500;
   font-size: 1.05rem;
   color: var(--cream);
   letter-spacing: 0.01em;
@@ -1155,9 +1173,10 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
   background: none;
   border: 1px solid transparent;
   border-radius: 50%;
-  font-family: var(--font-en);
-  font-variant-numeric: lining-nums;
-  font-size: 0.95rem;
+  font-family: var(--font-num);
+  font-weight: 500;
+  font-variant-numeric: lining-nums tabular-nums;
+  font-size: 1rem;
   color: var(--cream);
   cursor: pointer;
   transition: background 0.22s var(--ease), color 0.22s, border-color 0.22s;
@@ -1200,8 +1219,9 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
 }
 .foot-label { font-size: 0.78rem; color: rgba(237, 230, 218, 0.4); }
 .foot-phone {
-  font-family: var(--font-en);
-  font-size: 1.3rem;
+  font-family: var(--font-num);
+  font-weight: 500;
+  font-size: 1.25rem;
   letter-spacing: 0.05em;
   color: var(--sand);
   transition: opacity 0.3s;
@@ -1223,4 +1243,15 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
 @media (hover: none) and (pointer: coarse) {
   .hero-img,
   .hero-motif { will-change: auto; }
+}
+
+/* الطبق الواحد خمسون حبة؛ الرقم وحده يوهم أن الكمية حبة واحدة */
+.qrow-per-unit {
+  display: block;
+  font-family: var(--font-num);
+  font-weight: 500;
+  font-variant-numeric: lining-nums;
+  font-size: 0.76rem;
+  color: var(--sand);
+  margin-block-start: 0.2rem;
 }

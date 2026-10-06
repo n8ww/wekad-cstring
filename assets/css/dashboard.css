@@ -74,8 +74,10 @@ a { color: inherit; }
 button, input, select { font: inherit; color: inherit; }
 
 /* الأرقام: أرقام لاتينية وعرض ثابت في الجداول والمحاور */
-.num { font-variant-numeric: lining-nums; direction: ltr; unicode-bidi: isolate; }
+/* أرقام اللوحة تُقرأ بسرعة ويُقارن بعضها ببعض، فالأرقام جدولية بعرض ثابت */
+.num { font-variant-numeric: lining-nums tabular-nums; direction: ltr; unicode-bidi: isolate; }
 .tab { font-variant-numeric: tabular-nums lining-nums; direction: ltr; unicode-bidi: isolate; }
+.kpi .k-value, .jt-value, .bar-row .val, td .ref { font-variant-numeric: lining-nums tabular-nums; }
 
 .wrap { width: min(1440px, 100% - 2rem); margin-inline: auto; padding-block: 1.25rem 4rem; }
 

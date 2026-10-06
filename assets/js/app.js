@@ -51,8 +51,9 @@
       id: 'tart',
       ar: 'التارت',
       en: 'Tarts',
-      note: 'الطبق ٥٠ حبة',
+      note: 'الطبق 50 حبة',
       unitAr: 'طبق',
+      pieces: 50,          // كل طبق تارت = ٥٠ حبة
       max: 40,
       items: [
         { id: 't-custard',   ar: 'تارت كاسترد',  en: 'Custard Tart',   price: 305 },
@@ -94,6 +95,7 @@
   const DESSERTS = DESSERT_GROUPS.flatMap((g) =>
     g.items.map((d) => ({
       ...d, per: 'piece', step: 1, max: g.max, unitAr: g.unitAr, dessert: true, group: g.id,
+      pieces: g.pieces || 0,
     })));
 
   const ITEMS = [...EXTRAS, ...DESSERTS];
@@ -198,7 +200,8 @@
     return `
       <div class="qrow" data-id="${item.id}">
         <div class="qrow-main">
-          <span class="qrow-name">${item.ar}<span class="en">${item.en}</span></span>
+          <span class="qrow-name">${item.ar}<span class="en">${item.en}</span>
+            ${item.pieces ? `<span class="qrow-per-unit" data-pieces="${item.pieces}" hidden></span>` : ''}</span>
         </div>
         <div class="stepper stepper--sm">
           <button type="button" data-q="-" aria-label="إنقاص ${item.ar}">−</button>
@@ -212,7 +215,15 @@
   function refreshQtyTotals() {
     $$('.qrow').forEach((row) => {
       const item = ITEMS.find((i) => i.id === row.dataset.id);
-      row.classList.toggle('on', (state.qty[item.id] || 0) > 0);
+      const qty = state.qty[item.id] || 0;
+      row.classList.toggle('on', qty > 0);
+
+      // "٢ طبق" وحدها تُقرأ كقطعتين؛ الحاصل يزيل اللبس فور الاختيار
+      const note = $('.qrow-per-unit', row);
+      if (note) {
+        note.hidden = qty === 0;
+        note.textContent = qty ? `= ${fmt(qty * item.pieces)} حبة` : '';
+      }
     });
   }
 
@@ -300,7 +311,7 @@
       ...(isCustom() ? [['طلبك الخاص', state.customRequest]] : []),
       ['يوم المناسبة', state.date ? prettyPicked(state.date) : '—'],
       ['المدينة', state.city],
-      ...t.lines.map((l) => [l.ar, `${fmt(l.qty)} ${l.unitAr}`]),
+      ...t.lines.map((l) => [l.ar, `${fmt(l.qty)} ${l.unitAr}${l.pieces ? ` (${fmt(l.qty * l.pieces)} حبة)` : ''}`]),
       ['نوع العميل', state.clientType === 'company' ? 'شركة' : 'أفراد'],
       ...(state.clientType === 'company'
         ? [['اسم الشركة', state.company || '—'], ['الرقم الضريبي', state.vat || '—']]
@@ -456,7 +467,7 @@
   function validate() {
     if (PANES[state.step] === 'service' && isCustom()) {
       const cups = Number(state.customCups);
-      if (!cups || cups < 10) return 'اكتب عدد الأكواب التقريبي (١٠ على الأقل).';
+      if (!cups || cups < 50) return 'أقل باقة مخصصة ٥٠ كوباً — اكتب عدداً من ٥٠ فأكثر.';
       if (cups > 5000) return 'عدد الأكواب كبير جداً — تواصل معنا مباشرة.';
       if (state.customRequest.trim().length < 10) return 'اكتب وصفاً قصيراً لما تحتاجه.';
     }
@@ -579,7 +590,8 @@
         if (!picked.length) return;
         out.push(`*${g.ar}*`);
         picked.forEach((l) => {
-          out.push(`▪︎ ${l.ar} — ${fmt(l.qty)} ${l.unitAr}`);
+          const total = l.pieces ? `  (${fmt(l.qty * l.pieces)} حبة)` : '';
+          out.push(`▪︎ ${l.ar} — ${fmt(l.qty)} ${l.unitAr}${total}`);
         });
       });
     } else {
@@ -653,6 +665,7 @@
       items: t.lines.map((l) => ({
         id: l.id, name: l.ar, kind: l.dessert ? 'dessert' : 'addon',
         unit: l.unitAr, qty: l.qty, price: l.price, total: l.total,
+        ...(l.pieces ? { pieces: l.pieces, total_pieces: l.qty * l.pieces } : {}),
       })),
       desserts_total: round2(sweets.reduce((sum, l) => sum + l.total, 0)),
       addons_total: round2(addons.reduce((sum, l) => sum + l.total, 0)),
