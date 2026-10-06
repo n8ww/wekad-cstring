@@ -176,6 +176,23 @@
     return response.ok;
   }
 
+  /**
+   * العميل صار يرسل اليوم فقط؛ بقية التفاصيل نأخذها بالمكالمة ونكتبها هنا.
+   * القيم الفارغة تُحفظ null حتى لا تظهر كنص فارغ في جدول الطاقم.
+   */
+  async function patchOrder(id, fields) {
+    const clean = {};
+    Object.entries(fields).forEach(([key, value]) => {
+      clean[key] = value === '' || value === undefined ? null : value;
+    });
+    const response = await api(`/rest/v1/orders?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify(clean),
+    });
+    return response.ok;
+  }
+
   // ==========================================================================
   //  إدارة المستخدمين (للأدمن)
   // ==========================================================================
@@ -834,6 +851,87 @@
     });
   }
 
+  /**
+   * الخصم مشتقّ لا مُدخَل: نكتب السعر قبل وبعد، والنسبة تُحسب منهما.
+   * ترجع null إذا لم يُسجَّل سعر قبل الخصم أو لم يكن هناك فرق.
+   */
+  function discountOf(r) {
+    const before = Number(r.price_before);
+    const after = Number(r.total);
+    if (!before || !Number.isFinite(after) || before <= after) return null;
+    return { pct: Math.round(((before - after) / before) * 100), saved: before - after };
+  }
+
+  const discountPill = (r) => {
+    const d = discountOf(r);
+    return d ? `<span class="disc">−${d.pct}%</span>` : '';
+  };
+
+  /** حقول نكملها يدوياً بعد مكالمة العميل. */
+  function fillForm(r) {
+    const v = (x) => esc(x ?? '');
+    return `
+      <form class="fill" data-fill="${r.id}">
+        <h4>${t('fillTitle')}</h4>
+        <p class="fill-hint">${t('fillHint')}</p>
+        <div class="fill-grid">
+          <label><span>${t('fSetupDate')}</span><input type="date" name="setup_date" value="${v(r.setup_date)}"></label>
+          <label><span>${t('fSetupTime')}</span><input type="time" name="setup_time" value="${v(r.setup_time)}"></label>
+          <label><span>${t('fEventDate')}</span><input type="date" name="event_date" value="${v(r.event_date)}"></label>
+          <label><span>${t('fEventTime')}</span><input type="time" name="event_time" value="${v(r.event_time)}"></label>
+          <label><span>${t('fDays')}</span><input type="number" name="days" min="1" max="30" value="${v(r.days)}"></label>
+          <label><span>${t('fDistrict')}</span><input type="text" name="district" value="${v(r.district)}"></label>
+          <label><span>${t('fBefore')}</span><input type="number" name="price_before" min="0" step="0.01" value="${v(r.price_before)}"></label>
+          <label><span>${t('fTotal')}</span><input type="number" name="total" min="0" step="0.01" value="${v(r.total)}"></label>
+          <label class="wide"><span>${t('fVenue')}</span><input type="text" name="venue" value="${v(r.venue)}"></label>
+        </div>
+        <div class="fill-actions">
+          <button type="submit" class="btn btn-solid btn-sm">${t('fSaveDetails')}</button>
+          <span class="fill-msg"></span>
+        </div>
+      </form>`;
+  }
+
+  /** حفظ نموذج التفاصيل اليدوية وتحديث الصف في الذاكرة بلا إعادة تحميل كاملة. */
+  async function submitFill(form) {
+    const id = form.dataset.fill;
+    const data = new FormData(form);
+    const fields = {
+      setup_date: data.get('setup_date'),
+      setup_time: data.get('setup_time'),
+      event_date: data.get('event_date'),
+      event_time: data.get('event_time'),
+      days: data.get('days') ? Number(data.get('days')) : null,
+      district: String(data.get('district') || '').trim(),
+      venue: String(data.get('venue') || '').trim(),
+      total: data.get('total') === '' ? null : Number(data.get('total')),
+      price_before: data.get('price_before') === '' ? null : Number(data.get('price_before')),
+    };
+    const button = $('button[type="submit"]', form);
+    button.disabled = true;
+    const ok = await patchOrder(id, fields);
+    button.disabled = false;
+
+    if (!ok) {
+      const note = $('.fill-msg', form);
+      note.textContent = t('failSave');
+      note.className = 'fill-msg bad';
+      return;
+    }
+
+    const row = allOrders.find((o) => String(o.id) === String(id));
+    if (row) Object.assign(row, fields);
+    applyRange();                       // الصف الرئيسي يعرض الموعد الجديد فوراً
+
+    // إعادة الرسم تستبدل النموذج، فنعيد فتح التفاصيل ونضع الرسالة في النسخة الجديدة
+    const detail = $(`tr[data-detail="${id}"]`);
+    if (detail) detail.hidden = false;
+    const toggle = $(`[data-toggle="${id}"]`);
+    if (toggle) toggle.textContent = t('hide');
+    const note = $(`form[data-fill="${id}"] .fill-msg`);
+    if (note) { note.textContent = t('saved'); note.className = 'fill-msg ok'; }
+  }
+
   function renderTable() {
     const rows = visibleRows();
     $('#count').textContent = t('ofTotal', { a: rows.length, b: scoped.length });
@@ -867,7 +965,8 @@
         <td class="tab"><b>${dateOnly(r.setup_date || r.event_date)}</b> · ${esc(r.setup_time || '—')}
             <div class="muted">${t('work')} ${dateOnly(r.event_date)} · ${esc(r.event_time || '')}</div></td>
         <td>${esc(r.city || '—')}<div class="muted">${esc(r.district || '')}${maps ? ` · <a href="${maps}" target="_blank" rel="noopener">خريطة</a>` : ''}</div></td>
-        <td class="tab"><b>${n2(r.total)}</b></td>
+        <td class="tab"><b>${n2(r.total)}</b>${discountPill(r)}
+            ${discountOf(r) ? `<div class="muted was">${n2(r.price_before)}</div>` : ''}</td>
         <td>
           <span class="pill" style="background:color-mix(in srgb, ${stColor} 14%, transparent);color:${stColor}">
             <i style="background:${stColor}"></i>${stName}</span>
@@ -894,6 +993,10 @@
             <div><dt>${t('dVenue')}</dt><dd>${esc(r.venue || '—')}</dd></div>
             <div><dt>${t('dDistrict')}</dt><dd>${esc(r.district || '—')}</dd></div>
             <div><dt>${t('dBaristas')}</dt><dd class="num">${esc(r.included_baristas)}</dd></div>
+            ${discountOf(r) ? `
+              <div><dt>${t('dBefore')}</dt><dd class="num">${n2(r.price_before)} ر.س</dd></div>
+              <div><dt>${t('discount')}</dt><dd class="num">${discountOf(r).pct}%</dd></div>
+              <div><dt>${t('dSaved')}</dt><dd class="num">${n2(discountOf(r).saved)} ر.س</dd></div>` : ''}
             <div><dt>${t('dAddons')}</dt><dd class="num">${n2(r.addons_total)} ر.س</dd></div>
             <div><dt>${t('dSweets')}</dt><dd class="num">${n2(r.desserts_total)} ر.س</dd></div>
             ${r.vat ? `<div><dt>${t('dVat')}</dt><dd class="num">${esc(r.vat)}</dd></div>` : ''}
@@ -903,6 +1006,7 @@
           ${items.length ? `<ul class="items-list">${items.map((i) => `
             <li><span>${esc(i.name)} — <span class="num">${esc(i.qty)}</span> ${esc(i.unit)}</span>
                 <span class="num">${n2(i.total)} ر.س</span></li>`).join('')}</ul>` : ''}
+          ${fillForm(r)}
         </td>
       </tr>`;
     }).join('');
@@ -915,7 +1019,7 @@
       'رقم الطلب', 'تاريخ الطلب', 'الحالة', 'العميل', 'نوع العميل', 'الشركة',
       'الرقم الضريبي', 'الجوال', 'الخدمة', 'الباقة', 'الأيام',
       'تاريخ التركيب', 'وقت التركيب', 'تاريخ بدء العمل', 'وقت بدء العمل', 'طلب خاص', 'المدينة', 'الحي', 'الموقع', 'رابط الخريطة', 'باريستا مشمولة',
-      'الإضافات', 'الحلى', 'الإجمالي', 'الأصناف', 'ملاحظات',
+      'الإضافات', 'الحلى', 'السعر قبل الخصم', 'نسبة الخصم %', 'الإجمالي', 'الأصناف', 'ملاحظات',
     ];
 
     const cell = (v) => {
@@ -934,7 +1038,8 @@
       r.package_name, r.days, r.setup_date, r.setup_time, r.event_date, r.event_time,
       r.custom_request, r.city, r.district, r.venue,
       r.lat && r.lng ? `https://maps.google.com/?q=${r.lat},${r.lng}` : '',
-      r.included_baristas, r.addons_total, r.desserts_total, r.total,
+      r.included_baristas, r.addons_total, r.desserts_total,
+      r.price_before ?? '', discountOf(r)?.pct ?? '', r.total,
       itemsOf(r).map((i) => `${i.name} ×${i.qty}`).join(' | '),
       r.notes,
     ].map(cell).join(','));
@@ -1036,7 +1141,7 @@
             <div class="job-times">
               <div class="jt jt--main">
                 <span class="jt-label">${t('arrivalTime')}</span>
-                <span class="jt-value tab">${esc(r.setup_time || '—')}</span>
+                <span class="jt-value tab">${r.setup_time ? esc(r.setup_time) : `<em class="jt-pending">${t('notSet')}</em>`}</span>
               </div>
               <div class="jt">
                 <span class="jt-label">${t('serviceStart')}</span>
@@ -1616,6 +1721,12 @@
       if (!ok) { alert(t('failSave')); return; }
       editingItem = null;
       renderItems();
+    });
+
+    $('#table-body').addEventListener('submit', (e) => {
+      if (!e.target.matches('form.fill')) return;
+      e.preventDefault();
+      submitFill(e.target);
     });
 
     $('#table-body').addEventListener('click', (e) => {

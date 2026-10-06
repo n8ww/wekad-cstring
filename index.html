@@ -13,16 +13,14 @@
 <link rel="icon" href="assets/img/motif.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link rel="stylesheet" href="assets/css/style.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js"></script>
 </head>
 <body>
 
-<span id="sar-symbol" hidden><svg aria-hidden="true" focusable="false" class="sar" xmlns="http://www.w3.org/2000/svg" viewBox="148.2 706.3 50.7 55.7">
-<path transform="matrix(1,0,0,-1,172.3225,710.3128)" d="M0 0V-23.127L5.003-22.04 5.027-6.685C6.41-4.988 8.106-3.539 10.022-2.467V-20.968L22.588-18.31C22.345-20.164 21.923-22.011 21.121-23.703L10.022-26.056V-31.221L22.587-28.601C22.364-30.434 21.917-32.235 21.159-33.918L5.011-37.465V-27.135L.008-28.222C-.111-30.066 .14-32.057 .003-33.884-.018-34.161-.082-34.526-.171-34.789-.411-35.494-2.821-39.002-3.394-39.66-4.063-40.428-5.021-40.922-6.012-41.128L-20.12-44.095C-19.877-42.253-19.466-40.414-18.654-38.739L-5.011-35.77V-29.294L-17.619-31.989C-17.783-32.025-17.734-31.913-17.73-31.801-17.717-31.482-17.611-31-17.552-30.667-17.304-29.257-16.871-27.853-16.265-26.558L-5.045-24.133-5.009-4.203C-3.687-2.507-1.941-.951 0 0" fill="currentColor"/>
-<path transform="matrix(1,0,0,-1,194.9092,749.1662)" d="M0 0C-.229-1.879-.672-3.742-1.482-5.456L-17.575-8.865C-17.386-6.989-16.907-5.136-16.112-3.429Z" fill="currentColor"/>
-</svg></span>
+
 
 <!-- ===================== nav ===================== -->
 <header class="nav" id="nav">
@@ -54,9 +52,17 @@
 <main id="top">
 
 <!-- ===================== hero ===================== -->
-<section class="hero">
-  <div class="hero-bg"></div>
-  <div class="hero-motif"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="712.4 -22.9 1898.0 1153.4">
+<section class="hero" aria-label="وِكاد — ركن ضيافة القهوة">
+
+  <!-- طبقة الخلفية: حرير الهوية مع إزاحة بطيئة عند التمرير -->
+  <div class="hero-stage" aria-hidden="true">
+    <div class="hero-img" data-hero="img"></div>
+    <div class="hero-veil"></div>
+    <div class="hero-sheen" data-hero="sheen"></div>
+  </div>
+
+  <!-- الرمز يخرج من حافة الصفحة بدل أن يتوسطها -->
+  <div class="hero-motif" data-hero="motif" aria-hidden="true"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="712.4 -22.9 1898.0 1153.4">
 <path transform="matrix(1,0,0,-1,1661.3776,648.469)" d="M0 0-140.332 407.687C-159.849 464.397-204.482 508.907-261.248 528.268L-669.063 667.395Z" fill="currentColor"/>
 <path transform="matrix(1,0,0,-1,1661.3776,648.469)" d="M0 0 140.332 407.687C159.848 464.397 204.482 508.907 261.247 528.268L669.063 667.395Z" fill="currentColor"/>
 <path transform="matrix(1,0,0,-1,1661.3776,648.469)" d="M0 0 387.272 189.534C441.143 215.894 504.172 215.889 558.036 189.511L945.019 0Z" fill="currentColor"/>
@@ -64,25 +70,49 @@
 <path transform="matrix(1,0,0,-1,1808.6466,795.7053)" d="M0 0-147.282-147.271-294.547-.022-147.265 147.248Z" fill="currentColor"/>
 <path transform="matrix(1,0,0,-1,1753.1298,1034.7102)" d="M0 0-91.761-91.749-183.51-.011-91.75 91.738Z" fill="currentColor"/>
 </svg></div>
+
   <div class="hero-in page">
-    <div class="hero-mark"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="686.8 390.9 546.2 296.2" fill="none">
+    <p class="hero-eyebrow" data-hero="eyebrow">
+      <span class="hero-dot"></span>المنطقة الشرقية · الدمام · الخبر · الظهران
+    </p>
+
+    <div class="hero-mark" data-hero="mark"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="686.8 390.9 546.2 296.2" fill="none">
 <path transform="matrix(1,0,0,-1,1127.3045,552.1443)" d="M0 0C-3.324-6.019-14.833-23.748-21.275-24.606-97.357-23.802-153.064-25.323-221.573-26.335-241.802-26.766-262.231-27.073-282.856-27.247-294.978-27.349-307.032-27.404-319.017-27.414-324.52-26.623-332.617-24.539-338.978-18.258-349.381-7.989-348.382 7.554-349.066 13.915-353.202 52.549-350.554 92.632-359.958 130.965L-346.197 153.218C-340.627 126.38-338.261 98.034-335.949 70.499-334.642 54.929-335.527 37.542-333.502 22.233-333.161 19.612-332.617 13.446-328.475 7.454-325.707 3.439-322.389 .972-320.237-.395H-292.267L-12.28 .811C-12.052 20.048-34.553 27.28-50.338 28.567-93.034 32.046-141.368 26.744-184.299 26.121-218.295 25.624-266.227 23.03-298.735 28.909-314.097 31.691-314.433 31.509-308.327 45.096-286.576 93.504-225.709 120.616-178.93 138.466L-191.545 109.436C-223.751 97.029-265.851 81.13-290.383 56.136-291.422 55.076-293.038 55.123-292.414 52.744-283.734 52.013-275.134 49.895-266.448 49.124-194.594 42.744-119.718 54.313-47.851 50.371-28.628 49.312-3.747 46.577 3.646 25.792 7.822 14.049 5.63 10.201 0 0" fill="currentColor"/>
 <path transform="matrix(1,0,0,-1,1103.0913,613.9441)" d="M0 0 1.815 5.95C6.843 5.203 11.593 2.383 16.492 1.363 45.095-4.589 73.256 .506 92.799 23.403 99.799 31.605 110.379 46.903 106.102 57.781 87.617 46.936 59.004 45.825 51.187 69.869 45.61 87.023 57.515 113.96 73.082 122.816 106.385 141.764 118.818 84.747 118.243 61.957 117.431 29.879 88.553-27.056 51.128-24.367 31.764-22.976 15.965-9.201 0 0M100.08 77.102C97.641 90.664 79.131 115.653 66.271 97.024 60.052 88.015 68.642 77.102 77.741 77.102Z" fill="currentColor"/>
 <path transform="matrix(1,0,0,-1,1108.6843,667.3061)" d="M0 0 2.708-11.768 116.326 14.364 113.618 26.133Z" fill="currentColor"/>
 <path transform="matrix(1,0,0,-1,727.3729,583.1054)" d="M0 0C-20.416 0-31.828 9.119-32.364 26.162-32.584 34.809-30.915 44.086-28.016 50.433L-25.942 50.139C-26.685 47.646-27.032 45.392-27.032 43.359-27.032 30.44-12.905 26.492 4.144 27.131 15.387 27.359 34.267 29.647 34.267 37.466 34.267 49.908 8.415 67.23-4.234 75.71L4.962 98.123 7.876 98.212C32.946 74.971 39.344 54.561 39.344 37.206 39.344 12.34 26.431-.004 0-.004Z" fill="currentColor"/>
 </svg></div>
-    <div class="hero-rule"></div>
-    <h1 class="hero-title">ركن ضيافة القهوة</h1>
-    <p class="hero-sub">Coffee Catering Counter</p>
-    <p class="hero-lede">
-      نقدم في وِكاد خدمة ضيافة القهوة لجميع المناسبات، بتجربة متكاملة تعكس
+
+    <h1 class="hero-title">
+      <span class="mask"><span class="w" data-hero="line">ركن ضيافة القهوة</span></span>
+    </h1>
+
+    <p class="hero-sub">
+      <span class="mask"><span class="w" data-hero="line">Coffee Catering Counter</span></span>
+    </p>
+
+    <div class="hero-rule" data-hero="rule"></div>
+
+    <p class="hero-lede" data-hero="lede">
+      نقدّم في وِكاد خدمة ضيافة القهوة لجميع المناسبات، بتجربة متكاملة تعكس
       أصالة الضيافة وجودة التحميص.
     </p>
-    <div class="hero-actions">
+
+    <div class="hero-actions" data-hero="cta">
       <a href="#book" class="btn btn-solid">احجز مناسبتك</a>
       <a href="#packages" class="btn btn-ghost">تصفّح الباقات</a>
     </div>
   </div>
+
+  <div class="hero-foot page" data-hero="foot">
+    <ul class="hero-facts">
+      <li><b class="num">9</b><span>أصناف مشروبات</span></li>
+      <li><b class="num">5</b><span>باقات جاهزة</span></li>
+      <li><b class="num">6L</b><span>سعة الحافظة</span></li>
+    </ul>
+    <a class="hero-scroll" href="#about"><span>اكتشف</span><i></i></a>
+  </div>
+
 </section>
 
 <!-- ===================== about ===================== -->
@@ -144,7 +174,7 @@
       <div class="steps" role="tablist">
         <div class="step active" role="tab"><i>1</i><span class="step-label">بياناتك</span></div>
         <div class="step" role="tab"><i>2</i><span class="step-label">الخدمة</span></div>
-        <div class="step" role="tab"><i>3</i><span class="step-label">الموعد والموقع</span></div>
+        <div class="step" role="tab"><i>3</i><span class="step-label">يوم المناسبة</span></div>
         <div class="step" role="tab"><i>4</i><span class="step-label">التأكيد</span></div>
       </div>
 
@@ -249,73 +279,32 @@
             </details>
           </div>
 
-          <!-- 3. الموعد والموقع -->
+          <!-- 3. يوم المناسبة -->
           <div class="pane">
-            <h3 class="pane-title">الموعد والموقع<span class="en">Date &amp; location</span></h3>
-            <p class="pane-hint">متى تبي الخدمة، ووين بالضبط؟</p>
-            <div class="grid2">
-              <label class="f">
-                <span>تاريخ التركيب <em>/ Setup date</em></span>
-                <input type="date" id="f-setup-date" required>
-                <span class="f-note">اليوم الذي يصل فيه الفريق للتجهيز</span>
-              </label>
-              <label class="f">
-                <span>وقت التركيب <em>/ Setup time</em></span>
-                <input type="time" id="f-setup-time" value="16:00" required>
-              </label>
-              <label class="f">
-                <span>تاريخ بدء العمل <em>/ Service date</em></span>
-                <input type="date" id="f-date" required>
-              </label>
-              <label class="f">
-                <span>وقت بدء العمل <em>/ Service time</em></span>
-                <input type="time" id="f-time" value="19:00" required>
-              </label>
-              <label class="f">
-                <span>عدد الأيام <em>/ Days</em></span>
-                <div class="stepper">
-                  <button type="button" id="days-minus" aria-label="إنقاص">−</button>
-                  <input type="number" id="f-days" value="1" min="1" max="30" inputmode="numeric">
-                  <button type="button" id="days-plus" aria-label="زيادة">+</button>
-                </div>
-              </label>
+            <h3 class="pane-title">يوم المناسبة<span class="en">Event day</span></h3>
+            <p class="pane-hint">اختر اليوم، ونتواصل معك لتنسيق وقت التركيب وبقية التفاصيل.</p>
+
+            <div class="cal" id="cal" role="application" aria-label="تقويم اختيار اليوم">
+              <div class="cal-head">
+                <button type="button" class="cal-nav" id="cal-prev" aria-label="الشهر السابق"></button>
+                <span class="cal-title" id="cal-title"></span>
+                <button type="button" class="cal-nav" id="cal-next" aria-label="الشهر التالي"></button>
+              </div>
+              <div class="cal-week" id="cal-week"></div>
+              <div class="cal-grid" id="cal-grid"></div>
+              <p class="cal-picked" id="cal-picked"></p>
+            </div>
+
+            <div class="grid2" style="margin-block-start:1.6rem">
               <label class="f">
                 <span>المدينة <em>/ City</em></span>
                 <select id="f-city"></select>
               </label>
-              <label class="f">
-                <span>الحي <em>/ District</em></span>
-                <input type="text" id="f-district" placeholder="مثال: الشاطئ الغربي" required>
-              </label>
-              <label class="f">
-                <span>وصف الموقع <em>/ Venue</em> <em>(اختياري)</em></span>
-                <input type="text" id="f-venue" placeholder="اسم القاعة أو المبنى">
-              </label>
             </div>
 
-            <p class="blocked-note" id="blocked-note" hidden></p>
-
-            <div class="map-block">
-              <div class="map-head">
-                <span>حدّد الموقع على الخريطة <em>/ Pin the location</em></span>
-                <button type="button" class="btn btn-ghost btn-xs" id="btn-locate">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                    <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/>
-                  </svg>
-                  موقعي الحالي
-                </button>
-              </div>
-              <div id="map"></div>
-              <p class="map-hint">اضغط على الخريطة أو اسحب الدبوس لتحديد المكان بدقة.</p>
-              <p class="map-readout" id="map-readout">لم يتم تحديد الموقع بعد.</p>
-              <p class="map-hint" id="map-fallback" hidden>
-                تعذّر تحميل الخريطة. اكتب وصف الموقع بالتفصيل وسنتواصل معك لتأكيده.
-              </p>
-            </div>
-
-            <label class="f" style="margin-block-start:1.2rem">
+            <label class="f" style="margin-block-start:1rem">
               <span>ملاحظات <em>/ Notes</em> <em>(اختياري)</em></span>
-              <textarea id="f-notes" placeholder="طلبات خاصة، تعليمات الوصول…"></textarea>
+              <textarea id="f-notes" placeholder="أي شي تحب نعرفه مقدّماً…"></textarea>
             </label>
           </div>
 
@@ -374,31 +363,6 @@
   <p class="strip-cap">وِكاد حاضر</p>
 </section>
 
-<!-- ===================== contact ===================== -->
-<section class="section" id="contact">
-  <div class="page">
-    <div class="contact-card reveal">
-      <div class="motif-bg"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="712.4 -22.9 1898.0 1153.4">
-<path transform="matrix(1,0,0,-1,1661.3776,648.469)" d="M0 0-140.332 407.687C-159.849 464.397-204.482 508.907-261.248 528.268L-669.063 667.395Z" fill="currentColor"/>
-<path transform="matrix(1,0,0,-1,1661.3776,648.469)" d="M0 0 140.332 407.687C159.848 464.397 204.482 508.907 261.247 528.268L669.063 667.395Z" fill="currentColor"/>
-<path transform="matrix(1,0,0,-1,1661.3776,648.469)" d="M0 0 387.272 189.534C441.143 215.894 504.172 215.889 558.036 189.511L945.019 0Z" fill="currentColor"/>
-<path transform="matrix(1,0,0,-1,1661.3776,648.469)" d="M0 0-387.273 189.534C-441.143 215.894-504.172 215.889-558.037 189.511L-945.019 0Z" fill="currentColor"/>
-<path transform="matrix(1,0,0,-1,1808.6466,795.7053)" d="M0 0-147.282-147.271-294.547-.022-147.265 147.248Z" fill="currentColor"/>
-<path transform="matrix(1,0,0,-1,1753.1298,1034.7102)" d="M0 0-91.761-91.749-183.51-.011-91.75 91.738Z" fill="currentColor"/>
-</svg></div>
-      <div class="head head--center" style="margin-block-end:0">
-        <h2>للطلب والحجز<span class="en">For orders and reservations</span></h2>
-      </div>
-      <a href="tel:+966552487363" class="contact-phone num" dir="ltr">055 2487 363</a>
-      <p style="color:rgba(237,230,218,.6);margin-block-end:1.6rem">واتساب لخدمات الكيترنق · WhatsApp for Catering Services</p>
-      <a class="btn btn-wa" href="https://wa.me/966552487363" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.87 9.87 0 0 0 4.79 1.22h.01c5.46 0 9.9-4.45 9.9-9.91A9.85 9.85 0 0 0 12.04 2Zm0 18.15h-.01a8.2 8.2 0 0 1-4.18-1.15l-.3-.18-3.11.82.83-3.04-.2-.31a8.18 8.18 0 0 1-1.25-4.38c0-4.54 3.7-8.23 8.23-8.23 2.2 0 4.26.86 5.82 2.41a8.17 8.17 0 0 1 2.41 5.83c0 4.54-3.7 8.23-8.24 8.23Z"/></svg>
-        راسلنا على واتساب
-      </a>
-    </div>
-  </div>
-</section>
-
 </main>
 
 <footer class="foot">
@@ -409,6 +373,10 @@
 <path transform="matrix(1,0,0,-1,1108.6843,667.3061)" d="M0 0 2.708-11.768 116.326 14.364 113.618 26.133Z" fill="currentColor"/>
 <path transform="matrix(1,0,0,-1,727.3729,583.1054)" d="M0 0C-20.416 0-31.828 9.119-32.364 26.162-32.584 34.809-30.915 44.086-28.016 50.433L-25.942 50.139C-26.685 47.646-27.032 45.392-27.032 43.359-27.032 30.44-12.905 26.492 4.144 27.131 15.387 27.359 34.267 29.647 34.267 37.466 34.267 49.908 8.415 67.23-4.234 75.71L4.962 98.123 7.876 98.212C32.946 74.971 39.344 54.561 39.344 37.206 39.344 12.34 26.431-.004 0-.004Z" fill="currentColor"/>
 </svg></div>
+    <div class="foot-contact">
+      <span class="foot-label">للطلب والدعم</span>
+      <a class="foot-phone num" href="https://wa.me/966552487363" target="_blank" rel="noopener" dir="ltr">+966 55 248 7363</a>
+    </div>
     <p>© <span id="year"></span> وِكاد · جميع الحقوق محفوظة</p>
   </div>
 </footer>
@@ -422,5 +390,6 @@
 <script src="assets/js/visits.js"></script>
 <script src="assets/js/analytics.js"></script>
 <script src="assets/js/app.js"></script>
+<script defer src="assets/js/motion.js"></script>
 </body>
 </html>

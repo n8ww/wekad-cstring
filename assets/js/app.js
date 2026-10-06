@@ -113,15 +113,8 @@
     flaskId: 'f1',
     qty: Object.fromEntries(ITEMS.map((i) => [i.id, 0])),
     days: 1,
-    setupDate: '',
-    setupTime: '16:00',
     date: '',
-    time: '19:00',
     city: CITIES[0],
-    district: '',
-    venue: '',
-    lat: null,
-    lng: null,
     clientType: 'individual',
     name: '',
     phone: '',
@@ -147,24 +140,13 @@
       );
       if (!response.ok) return;
       (await response.json()).forEach((row) => blockedDays.set(row.day, row.reason || ''));
-      renderBlockedHint();
+      renderCalendar();
     } catch { /* الموقع يعمل بدونها */ }
-  }
-
-  function renderBlockedHint() {
-    const box = $('#blocked-note');
-    if (!box) return;
-    const days = [...blockedDays.keys()].sort().slice(0, 12);
-    if (!days.length) { box.hidden = true; return; }
-    box.innerHTML = `<b>أيام غير متاحة:</b> ${days.join(' · ')}`
-      + (blockedDays.size > days.length ? ` وأكثر` : '');
-    box.hidden = false;
   }
 
   const $  = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
-  const sarIcon = () => $('#sar-symbol').innerHTML;
   const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
   // Cake prices have decimals, package prices do not — show only what is there.
   const fmt = (n) => round2(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
@@ -217,14 +199,8 @@
     return { base, baseTotal, lines, linesTotal, grand: round2(baseTotal + linesTotal) };
   }
 
-  function mapsLink() {
-    if (state.lat == null || state.lng == null) return '';
-    return `https://maps.google.com/?q=${state.lat.toFixed(6)},${state.lng.toFixed(6)}`;
-  }
-
   // ---------- quantity rows ----------
   function qtyRow(item) {
-    const perLabel = item.per === 'day' ? '/ لليوم' : `/ لل${item.unitAr}`;
     return `
       <div class="qrow" data-id="${item.id}">
         <div class="qrow-main">
@@ -242,9 +218,7 @@
   function refreshQtyTotals() {
     $$('.qrow').forEach((row) => {
       const item = ITEMS.find((i) => i.id === row.dataset.id);
-      const qty = state.qty[item.id] || 0;
-      const total = round2(item.per === 'day' ? item.price * qty * state.days : item.price * qty);
-      row.classList.toggle('on', qty > 0);
+      row.classList.toggle('on', (state.qty[item.id] || 0) > 0);
     });
   }
 
@@ -259,40 +233,6 @@
         <div class="pkg-cups-unit">كوب</div>
 
       </article>`).join('');
-
-    if ($('#flask-rows')) $('#flask-rows').innerHTML = FLASKS.map((f) => `
-      <div class="row reveal">
-        <div>
-          <div class="row-name">${f.ar}<span class="en">${f.en}</span></div>
-          <div class="row-note">تكفي من ${f.cupsFrom} إلى ${f.cupsTo} كوب · سعة ٦ لتر</div>
-        </div>
-
-      </div>`).join('');
-
-    if ($('#extra-rows')) $('#extra-rows').innerHTML = EXTRAS.map((e) => `
-      <div class="row reveal">
-        <div>
-          <div class="row-name">${e.ar}<span class="en">${e.en}</span></div>
-          <div class="row-note">${e.per === 'day' ? 'لكل باريستا في اليوم' : 'لكل كوب'}</div>
-        </div>
-
-      </div>`).join('');
-
-    // dessert menu on the landing page, one block per group
-    if ($('#dessert-grid')) $('#dessert-grid').innerHTML = DESSERT_GROUPS.map((g) => `
-      <section class="sweet-group reveal">
-        <header class="sweet-group-head">
-          <h3>${g.ar}<span class="en">${g.en}</span></h3>
-          <span class="sweet-group-note">${g.note}</span>
-        </header>
-        <div class="sweets">
-          ${g.items.map((d) => `
-            <article class="sweet">
-              <span class="sweet-name">${d.ar}<span class="en">${d.en}</span></span>
-
-            </article>`).join('')}
-        </div>
-      </section>`).join('');
 
     // wizard options
     $('#opt-packages').innerHTML = PACKAGES.map((p) => `
@@ -331,11 +271,6 @@
 
     $('#f-city').innerHTML = CITIES.map((c) =>
       `<option ${c === state.city ? 'selected' : ''}>${c}</option>`).join('');
-
-    // لا تُقبل التواريخ الماضية؛ أقرب موعد هو الغد
-    const earliest = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-    $('#f-date').min = earliest;
-    $('#f-setup-date').min = earliest;
   }
 
   /** تظهر حقول التخصيص فقط عند اختيار "باقة مخصصة". */
@@ -364,21 +299,13 @@
         ? `${t.base.cups} كوب`
         : `${t.base.ar} (${t.base.cupsFrom}–${t.base.cupsTo} كوب)`;
 
-    const link = mapsLink();
     const rows = [
       ['الخدمة', SERVICES[state.service].ar],
       ['باريستا مشمولة مجاناً', `${includedBaristas()}`],
       [state.service === 'counter' ? 'الباقة' : 'الحافظات', sizeText],
       ...(isCustom() ? [['طلبك الخاص', state.customRequest]] : []),
-      ['عدد الأيام', String(state.days)],
-      ['تاريخ التركيب', state.setupDate || '—'],
-      ['وقت التركيب', state.setupTime || '—'],
-      ['تاريخ بدء العمل', state.date || '—'],
-      ['وقت بدء العمل', state.time || '—'],
+      ['يوم المناسبة', state.date ? prettyPicked(state.date) : '—'],
       ['المدينة', state.city],
-      ['الحي', state.district || '—'],
-      ['وصف الموقع', state.venue || '—'],
-      ...(link ? [['الموقع على الخريطة', 'تم تحديده على الخريطة ✓']] : []),
       ...t.lines.map((l) => [l.ar, `${fmt(l.qty)} ${l.unitAr}`]),
       ['نوع العميل', state.clientType === 'company' ? 'شركة' : 'أفراد'],
       ...(state.clientType === 'company'
@@ -421,6 +348,68 @@
     renderIncluded();
   }
 
+  // ---------- calendar ----------
+  const WEEKDAYS_SHORT = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
+
+  const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  const monthLabel = (d) =>
+    new Intl.DateTimeFormat('ar', { month: 'long', year: 'numeric' }).format(d);
+
+  function prettyPicked(iso) {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Intl.DateTimeFormat('ar', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    }).format(new Date(y, m - 1, d));
+  }
+
+  let calMonth = null;
+
+  /** تقويم شهري: اليوم الوحيد الذي يختاره العميل. الأيام الماضية والمقفلة معطّلة. */
+  function renderCalendar() {
+    const grid = $('#cal-grid');
+    if (!grid) return;
+    if (!calMonth) calMonth = new Date();
+
+    $('#cal-title').textContent = monthLabel(calMonth);
+    $('#cal-week').innerHTML = WEEKDAYS_SHORT
+      .map((w) => `<span class="cal-wd">${w}</span>`).join('');
+
+    const year = calMonth.getFullYear();
+    const month = calMonth.getMonth();
+    const first = new Date(year, month, 1).getDay();          // 0 = الأحد
+    const count = new Date(year, month + 1, 0).getDate();
+    const today = ymd(new Date());
+
+    const cells = [];
+    for (let i = 0; i < first; i += 1) cells.push('<span class="cal-blank"></span>');
+    for (let day = 1; day <= count; day += 1) {
+      const iso = ymd(new Date(year, month, day));
+      const past = iso <= today;
+      const blocked = blockedDays.has(iso);
+      const picked = iso === state.date;
+      const why = blocked ? blockedDays.get(iso) : '';
+      const cls = ['cal-day'];
+      if (past) cls.push('is-past');
+      if (blocked) cls.push('is-blocked');
+      if (picked) cls.push('is-picked');
+      cells.push(
+        `<button type="button" class="${cls.join(' ')}" data-day="${iso}"`
+        + `${past || blocked ? ' disabled' : ''}`
+        + `${blocked ? ` title="غير متاح${why ? ` — ${escapeHtml(why)}` : ''}"` : ''}`
+        + `${picked ? ' aria-current="date"' : ''}>${day}</button>`,
+      );
+    }
+    grid.innerHTML = cells.join('');
+
+    // لا يرجع قبل الشهر الحالي
+    const now = new Date();
+    $('#cal-prev').disabled = year === now.getFullYear() && month === now.getMonth();
+
+    $('#cal-picked').textContent = state.date ? prettyPicked(state.date) : '';
+    $('#cal-picked').hidden = !state.date;
+  }
+
   // ---------- steps ----------
   const PANES = ['client', 'service', 'when', 'review'];
 
@@ -445,7 +434,6 @@
     $('#btn-send').hidden = !last;
 
     if (PANES[state.step] === 'service') syncSizePane();
-    if (PANES[state.step] === 'when') initMap();
 
     const paneName = PANES[state.step];
     if (state.step > 0 && !reachedCheckout) {
@@ -462,8 +450,12 @@
     $('#err').textContent = '';
 
     if (scroll) {
-      const top = $('#book').getBoundingClientRect().top + window.scrollY - 80;
-      window.scrollTo({ top, behavior: 'smooth' });
+      if (window.wekadScrollTo) {
+        window.wekadScrollTo($('#book'));
+      } else {
+        const top = $('#book').getBoundingClientRect().top + window.scrollY - 80;
+        window.scrollTo({ top, behavior: 'smooth' });
+      }
     }
   }
 
@@ -476,25 +468,13 @@
     }
 
     if (PANES[state.step] === 'when') {
-      const today = new Date().toISOString().slice(0, 10);
-      if (!state.setupDate) return 'اختر تاريخ التركيب.';
-      if (!state.setupTime) return 'اختر وقت التركيب.';
-      if (state.setupDate <= today) return 'تاريخ التركيب لازم يكون بعد اليوم.';
-      if (!state.date) return 'اختر تاريخ بدء العمل.';
-      if (!state.time) return 'اختر وقت بدء العمل.';
-      if (state.date < state.setupDate) return 'تاريخ بدء العمل لا يسبق تاريخ التركيب.';
-      if (state.date === state.setupDate && state.time < state.setupTime) {
-        return 'وقت بدء العمل لازم يكون بعد وقت التركيب.';
+      const today = ymd(new Date());
+      if (!state.date) return 'اختر يوم المناسبة من التقويم.';
+      if (state.date <= today) return 'اختر يوماً بعد اليوم.';
+      if (blockedDays.has(state.date)) {
+        const why = blockedDays.get(state.date);
+        return `هذا اليوم غير متاح${why ? ` — ${why}` : ''}. اختر يوماً آخر.`;
       }
-      for (const [label, day] of [['التركيب', state.setupDate], ['بدء العمل', state.date]]) {
-        if (blockedDays.has(day)) {
-          const why = blockedDays.get(day);
-          return `يوم ${label} (${day}) غير متاح${why ? ` — ${why}` : ''}. اختر يوماً آخر.`;
-        }
-      }
-      if (!state.district.trim()) return 'اكتب اسم الحي.';
-      if (state.lat == null) return 'حدّد موقع المناسبة على الخريطة.';
-      if (state.days < 1) return 'عدد الأيام يجب أن يكون يوماً واحداً على الأقل.';
     }
     if (PANES[state.step] === 'client') {
       if (state.name.trim().length < 3) return 'اكتب اسمك الكامل.';
@@ -504,55 +484,6 @@
       if (state.clientType === 'company' && state.company.trim().length < 2) return 'اكتب اسم الشركة.';
     }
     return '';
-  }
-
-  // ---------- map ----------
-  let map = null;
-  let marker = null;
-
-  function setPoint(lat, lng, recentre = false) {
-    state.lat = lat;
-    state.lng = lng;
-    if (marker) marker.setLatLng([lat, lng]);
-    if (recentre && map) map.setView([lat, lng], Math.max(map.getZoom(), 15));
-    track('set_location', { city: state.city });
-    $('#map-readout').innerHTML =
-      `<span class="ok">✓ تم تحديد الموقع</span> <a href="${mapsLink()}" target="_blank" rel="noopener">فتح في خرائط Google</a>`;
-  }
-
-  function initMap() {
-    if (map || typeof L === 'undefined') {
-      if (typeof L === 'undefined') $('#map-fallback').hidden = false;
-      return;
-    }
-    map = L.map('map', { scrollWheelZoom: false }).setView(MAP_CENTER, MAP_ZOOM);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap',
-    }).addTo(map);
-
-    marker = L.marker(MAP_CENTER, { draggable: true }).addTo(map);
-    marker.on('dragend', () => {
-      const { lat, lng } = marker.getLatLng();
-      setPoint(lat, lng);
-    });
-    map.on('click', (e) => setPoint(e.latlng.lat, e.latlng.lng));
-
-    // Leaflet measures the container on creation; it is hidden until this step.
-    setTimeout(() => map.invalidateSize(), 60);
-  }
-
-  function locateMe() {
-    if (!navigator.geolocation) {
-      $('#map-readout').textContent = 'المتصفح لا يدعم تحديد الموقع.';
-      return;
-    }
-    $('#map-readout').textContent = 'جارٍ تحديد موقعك…';
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setPoint(pos.coords.latitude, pos.coords.longitude, true),
-      () => { $('#map-readout').textContent = 'تعذّر تحديد الموقع — حرّك الدبوس على الخريطة يدوياً.'; },
-      { enableHighAccuracy: true, timeout: 10000 },
-    );
   }
 
   // ---------- order handoff ----------
@@ -578,14 +509,6 @@
     return new Intl.DateTimeFormat('ar-SA-u-ca-gregory-nu-latn', {
       day: 'numeric', month: 'long', year: 'numeric',
     }).format(d);
-  }
-
-  function time12(hhmm) {
-    const [h, m] = (hhmm || '').split(':').map(Number);
-    if (Number.isNaN(h)) return hhmm;
-    const period = h < 12 ? 'صباحاً' : 'مساءً';
-    const hour = h % 12 || 12;
-    return `${hour}:${String(m).padStart(2, '0')} ${period}`;
   }
 
   let currentRef = '';
@@ -624,48 +547,27 @@
       out.push(`▪︎ الحافظات: ${t.base.ar}`);
       out.push(`▪︎ تكفي: ${t.base.cupsFrom}–${t.base.cupsTo} كوب`);
     }
-    out.push(`▪︎ عدد الأيام: ${state.days} ${state.days === 1 ? 'يوم' : 'أيام'}`);
     out.push('');
 
     // ---- 2. when ----
     out.push(HR);
-    out.push('*٢ · الموعد*');
+    out.push('*٢ · يوم المناسبة*');
     out.push(HR);
-    out.push('*التركيب*');
-    out.push(`▪︎ اليوم: ${arabicDay(state.setupDate)}`);
-    out.push(`▪︎ التاريخ: ${prettyDate(state.setupDate)}  (${state.setupDate})`);
-    out.push(`▪︎ الوقت: ${time12(state.setupTime)}`);
-    out.push('');
-    out.push('*بدء العمل*');
     out.push(`▪︎ اليوم: ${arabicDay(state.date)}`);
     out.push(`▪︎ التاريخ: ${prettyDate(state.date)}  (${state.date})`);
-    out.push(`▪︎ الوقت: ${time12(state.time)}`);
-    out.push('');
-
-    // ---- 3. where ----
-    out.push(HR);
-    out.push('*٣ · الموقع*');
-    out.push(HR);
     out.push(`▪︎ المدينة: ${state.city}`);
-    out.push(`▪︎ الحي: ${state.district}`);
-    if (state.venue.trim()) out.push(`▪︎ الوصف: ${state.venue}`);
-    const link = mapsLink();
-    if (link) {
-      out.push('▪︎ الموقع على الخريطة:');
-      out.push(link);
-    }
     out.push('');
 
     // ---- 4. add-ons ----
     out.push(HR);
-    out.push('*٤ · الإضافات*');
+    out.push('*٣ · الإضافات*');
     out.push(HR);
     out.push(`▪︎ باريستا مشمولة مجاناً: ${includedBaristas()}`);
     if (addons.length) {
       addons.forEach((l) => {
         out.push(`▪︎ ${l.ar}`);
         out.push(l.per === 'day'
-          ? `   العدد: ${fmt(l.qty)} ${l.unitAr} × ${state.days} ${state.days === 1 ? 'يوم' : 'أيام'}`
+          ? `   العدد: ${fmt(l.qty)} ${l.unitAr}`
           : `   العدد: ${fmt(l.qty)} ${l.unitAr}`);
       });
     } else {
@@ -675,7 +577,7 @@
 
     // ---- 5. desserts ----
     out.push(HR);
-    out.push('*٥ · الحلى*');
+    out.push('*٤ · الحلى*');
     out.push(HR);
     if (sweets.length) {
       DESSERT_GROUPS.forEach((g) => {
@@ -693,7 +595,7 @@
 
     // ---- 6. customer ----
     out.push(HR);
-    out.push('*٦ · بيانات العميل*');
+    out.push('*٥ · بيانات العميل*');
     out.push(HR);
     out.push(`▪︎ الاسم: ${state.name}`);
     out.push(`▪︎ الجوال: ${state.phone}`);
@@ -707,14 +609,14 @@
     // ---- 7. notes ----
     if (state.notes.trim()) {
       out.push(HR);
-      out.push('*٧ · ملاحظات العميل*');
+      out.push('*٦ · ملاحظات العميل*');
       out.push(HR);
       out.push(state.notes.trim());
       out.push('');
     }
 
     out.push(HR);
-    out.push('_سنتواصل معك لتأكيد التفاصيل وعرض السعر._');
+    out.push('_سنتواصل معك هاتفياً لتحديد وقت التركيب وبقية التفاصيل وعرض السعر._');
 
     return out.join('\n');
   }
@@ -738,15 +640,15 @@
       custom_request: isCustom() ? state.customRequest.trim() : null,
       package_price: t.base.price,
       days: state.days,
-      setup_date: state.setupDate || null,
-      setup_time: state.setupTime,
+      setup_date: state.date || null,
+      setup_time: null,
       event_date: state.date || null,
-      event_time: state.time,
+      event_time: null,
       city: state.city,
-      district: state.district,
-      venue: state.venue,
-      lat: state.lat,
-      lng: state.lng,
+      district: null,
+      venue: null,
+      lat: null,
+      lng: null,
       client_type: state.clientType,
       customer_name: state.name,
       phone: state.phone,
@@ -805,7 +707,8 @@
     $('#done-link').href = url;
     $('#wizard-body').hidden = true;
     $('#done').hidden = false;
-    $('#book').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (window.wekadScrollTo) window.wekadScrollTo($('#book'));
+    else $('#book').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   // ---------- wiring ----------
@@ -822,8 +725,13 @@
         state.packageId = e.target.value;
         syncCustomPanel();
         renderTotal();
+        // قيمة "custom" ليست ضمن PACKAGES، فلا تتبّع لها بيانات باقة
         const pkg = PACKAGES.find((p) => p.id === e.target.value);
-        track('select_item', { item_id: pkg.id, item_name: `${pkg.cups} كوب`, price: pkg.price, item_category: 'package' });
+        if (pkg) {
+          track('select_item', { item_id: pkg.id, item_name: `${pkg.cups} كوب`, price: pkg.price, item_category: 'package' });
+        } else {
+          track('select_item', { item_id: 'custom', item_name: 'باقة مخصصة', item_category: 'package' });
+        }
       }
     });
     $('#opt-flasks').addEventListener('change', (e) => {
@@ -870,26 +778,9 @@
       host.addEventListener('input', (e) => { if (e.target.tagName === 'INPUT') onQty(e); });
     });
 
-    // days
-    const days = $('#f-days');
-    const setDays = (v) => {
-      state.days = Math.max(1, Math.min(30, v || 1));
-      days.value = state.days;
-      renderTotal();
-    };
-    $('#days-minus').addEventListener('click', () => setDays(state.days - 1));
-    $('#days-plus').addEventListener('click', () => setDays(state.days + 1));
-    days.addEventListener('input', () => setDays(parseInt(days.value, 10)));
-
     const bind = (sel, key) => $(sel).addEventListener('input', (e) => { state[key] = e.target.value; });
     bind('#f-custom-cups', 'customCups');
     bind('#f-custom-request', 'customRequest');
-    bind('#f-setup-date', 'setupDate');
-    bind('#f-setup-time', 'setupTime');
-    bind('#f-date', 'date');
-    bind('#f-time', 'time');
-    bind('#f-district', 'district');
-    bind('#f-venue', 'venue');
     bind('#f-name', 'name');
     bind('#f-phone', 'phone');
     bind('#f-company', 'company');
@@ -897,30 +788,17 @@
     bind('#f-notes', 'notes');
     $('#f-city').addEventListener('change', (e) => { state.city = e.target.value; });
 
-    // رفض الأيام المقفلة فور اختيارها، بدل تركها حتى الإرسال
-    const guardBlocked = (input, key) => input.addEventListener('change', () => {
-      const day = input.value;
-      if (!day || !blockedDays.has(day)) return;
-      const why = blockedDays.get(day);
-      $('#err').textContent = `يوم ${day} غير متاح${why ? ` (${why})` : ''} — اختر يوماً آخر.`;
-      input.value = '';
-      state[key] = '';
-      input.focus();
+    // التقويم
+    $('#cal-prev').addEventListener('click', () => { calMonth.setMonth(calMonth.getMonth() - 1); renderCalendar(); });
+    $('#cal-next').addEventListener('click', () => { calMonth.setMonth(calMonth.getMonth() + 1); renderCalendar(); });
+    $('#cal-grid').addEventListener('click', (e) => {
+      const cell = e.target.closest('button.cal-day');
+      if (!cell || cell.disabled) return;
+      state.date = cell.dataset.day;
+      $('#err').textContent = '';
+      renderCalendar();
+      track('select_date', { day: state.date });
     });
-    guardBlocked($('#f-setup-date'), 'setupDate');
-    guardBlocked($('#f-date'), 'date');
-
-    // اختيار يوم التركيب يقترح نفس اليوم لبدء العمل، ويمنع اختيار يوم أسبق منه
-    $('#f-setup-date').addEventListener('change', () => {
-      const serviceInput = $('#f-date');
-      serviceInput.min = state.setupDate || serviceInput.min;
-      if (!state.date || state.date < state.setupDate) {
-        serviceInput.value = state.setupDate;
-        state.date = state.setupDate;
-      }
-    });
-
-    $('#btn-locate').addEventListener('click', locateMe);
 
     $$('input[name="client"]').forEach((el) => el.addEventListener('change', () => {
       state.clientType = el.value;
@@ -977,6 +855,7 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     renderStatic();
+    renderCalendar();
     loadBlockedDays();
     wire();
     chrome();

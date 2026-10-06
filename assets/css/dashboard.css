@@ -804,3 +804,82 @@ tr.row-soon td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
   border-color: #cfe8dc;
   color: var(--brand-deep);
 }
+
+/* ==========================================================================
+   التسجيل اليدوي داخل تفاصيل الطلب
+   العميل يرسل اليوم فقط؛ وقت التركيب والموقع والسعر نكتبها هنا بعد المكالمة.
+   ========================================================================== */
+.fill {
+  margin-block-start: 1.1rem;
+  padding-block-start: 1.1rem;
+  border-block-start: 1px dashed var(--line);
+}
+.fill h4 {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--brand-deep);
+}
+.fill-hint {
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  margin-block: 0.2rem 0.9rem;
+}
+.fill-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.7rem 0.9rem;
+}
+.fill-grid label { display: block; }
+.fill-grid label.wide { grid-column: 1 / -1; }
+.fill-grid span {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--ink-2);
+  margin-block-end: 0.3rem;
+}
+.fill-grid input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.52rem 0.7rem;
+  font-size: 0.88rem;
+  color: var(--ink);
+}
+.fill-grid input:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-ring);
+}
+.fill-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-block-start: 0.9rem;
+}
+.fill-msg { font-size: 0.82rem; }
+.fill-msg.ok { color: var(--brand); }
+.fill-msg.bad { color: var(--st-cancelled); }
+
+/* وقت التركيب يصل بالمكالمة، فالفراغ هنا حالة منتظَرة لا خطأ */
+.jt-pending {
+  font-style: normal;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-muted);
+}
+
+/* ---------- الخصم ---------- */
+.disc {
+  display: inline-block;
+  margin-inline-start: 0.4rem;
+  padding: 0.1rem 0.42rem;
+  border-radius: 999px;
+  background: var(--brand-wash);
+  color: var(--brand-deep);
+  font-size: 0.72rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+/* السعر الأصلي يُعرض مشطوباً تحت السعر المتفق عليه */
+.was { text-decoration: line-through; opacity: 0.75; }
