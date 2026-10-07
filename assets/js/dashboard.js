@@ -119,8 +119,13 @@
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       const msg = data.msg || data.error_description || data.message || '';
-      if (/already/i.test(msg)) throw new Error(t('emailTaken'));
-      if (/password/i.test(msg)) throw new Error(t('shortPass'));
+      // الرمز هو ما يُفحص لاحقاً؛ مطابقة النص المترجم تنهار بتغيير اللغة
+      if (/already/i.test(msg)) {
+        const e = new Error(t('emailTaken')); e.code = 'email_taken'; throw e;
+      }
+      if (/password/i.test(msg)) {
+        const e = new Error(t('shortPass')); e.code = 'weak_password'; throw e;
+      }
       throw new Error(msg || t('createFail'));
     }
     return data;   // قد يحتوي جلسة مباشرة، أو لا شيء إن كان التأكيد بالبريد مفعّلاً
@@ -228,6 +233,7 @@
           </select>
           <span class="staff-state ${r.registered ? 'ok' : ''}">
             ${r.registered ? t('registered') : t('notRegistered')}</span>
+          ${r.registered ? `<button class="btn btn-ghost btn-sm" data-reset="${esc(r.email)}">${t('resetPass')}</button>` : ''}
           <button class="btn btn-ghost btn-sm" data-remove="${esc(r.email)}" ${isMe ? 'disabled' : ''}>${t('remove')}</button>
         </div>`;
       }).join('');
@@ -247,6 +253,24 @@
    * يُستدعى مسار التسجيل العام بمفتاح الموقع، والجلسة العائدة تُهمل عمداً
    * حتى لا تحلّ محل جلسة المدير في المتصفح.
    */
+  /**
+   * رابط إعادة تعيين كلمة المرور. المفتاح العام لا يسمح بتغيير كلمة مرور
+   * مستخدم آخر مباشرة، فالبريد هو الطريق الوحيد من داخل اللوحة.
+   * Supabase يرد بنجاح حتى لو لم يوجد البريد، منعاً لتعداد الحسابات.
+   */
+  async function sendReset(email) {
+    try {
+      const response = await fetch(`${cfg.SUPABASE_URL}/auth/v1/recover`, {
+        method: 'POST',
+        headers: { apikey: cfg.SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      return response.ok;
+    } catch {
+      return false;                    // انقطاع الشبكة لا يترك الزر معطّلاً
+    }
+  }
+
   async function createStaffAccount(email, password) {
     const response = await fetch(`${cfg.SUPABASE_URL}/auth/v1/signup`, {
       method: 'POST',
@@ -1417,8 +1441,8 @@
         try {
           created = await signUp(email, password);
         } catch (signUpError) {
-          // الحساب موجود ⇒ إذن كلمة المرور هي الخاطئة
-          if (/بالفعل/.test(signUpError.message)) {
+          // التسجيل رُفض لوجود الحساب ⇒ الدخول فشل بسبب كلمة المرور
+          if (signUpError.code === 'email_taken') {
             throw new Error(t('wrongPass'));
           }
           throw signUpError;
@@ -1590,12 +1614,19 @@
         return;
       }
 
-      ok.innerHTML = result.existed
-        ? `أُضيفت الصلاحية لـ <b dir="ltr">${esc(email)}</b>. الحساب موجود مسبقاً، فكلمة مروره القديمة هي المعتمدة.`
-        : `تم إنشاء الحساب ✓ أعطِ الموظف هذي البيانات:
+      if (result.existed) {
+        // تسجيل البريد الموجود يُرفض من المصدر، فكلمة المرور الجديدة لم تُحفظ.
+        // عرضها كنجاح يجعل المدير يسلّم الموظف كلمة مرور لا تعمل.
+        err.innerHTML = `${t('acctExists', { email: esc(email) })}
+          <button type="button" class="btn btn-ghost btn-sm" data-reset="${esc(email)}"
+                  style="margin-block-start:.6rem">${t('sendReset')}</button>`;
+        err.hidden = false;
+      } else {
+        ok.innerHTML = `${t('acctCreated')}
            <span class="cred-box"><code>${esc(email)}</code><code>${esc(password)}</code></span>
-           ${result.confirmed ? '' : '<br><b>ملاحظة:</b> الحساب ينتظر تفعيل البريد — عطّل Confirm email من Supabase ليدخل مباشرة.'}`;
-      ok.hidden = false;
+           ${result.confirmed ? '' : `<br><b>${t('note')}:</b> ${t('pendingConfirm')}`}`;
+        ok.hidden = false;
+      }
 
       $('#staff-email').value = '';
       $('#staff-pass').value = '';
@@ -1612,6 +1643,17 @@
       }
       if (!(await changeRole(email, newRole))) alert(t('failRole'));
       renderStaff();
+    });
+
+    // زر إعادة التعيين يظهر في مكانين: قائمة المستخدمين وتحذير الحساب الموجود
+    document.addEventListener('click', async (e) => {
+      const email = e.target.dataset?.reset;
+      if (!email) return;
+      const button = e.target;
+      button.disabled = true;
+      const sent = await sendReset(email);
+      button.textContent = sent ? t('resetSent') : t('resetFail');
+      if (!sent) button.disabled = false;
     });
 
     $('#staff-list').addEventListener('click', async (e) => {
