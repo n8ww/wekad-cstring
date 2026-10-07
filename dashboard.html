@@ -9,7 +9,7 @@
 <link rel="icon" href="assets/img/motif.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="assets/css/dashboard.css?v=202610071041">
+<link rel="stylesheet" href="assets/css/dashboard.css?v=202610071046">
 </head>
 <body>
 
@@ -127,6 +127,61 @@
 
       <!-- ===== الطلبات ===== -->
       <section class="page" data-page="orders">
+
+        <!-- حجز يدوي: العميل الذي يتصل مباشرة بدل أن يحجز من الموقع -->
+        <details class="drop add-order" id="add-order">
+          <summary>
+            <span class="s-title" data-i18n="addOrder">إضافة حجز يدوي</span>
+            <span class="s-cue" data-i18n="show">عرض</span>
+          </summary>
+          <div class="drop-body">
+            <p class="hint" data-i18n="addOrderHint">للعميل الذي يتصل مباشرة. اكتب الأساسي الآن، وبقية التفاصيل من «تفاصيل» بعد الحفظ.</p>
+            <form id="order-form">
+              <div class="fill-grid">
+                <label><span data-i18n="fName">اسم العميل</span>
+                  <input type="text" id="o-name" required></label>
+                <label><span data-i18n="fPhone">الجوال</span>
+                  <input type="tel" id="o-phone" dir="ltr" required placeholder="05xxxxxxxx"></label>
+                <label><span data-i18n="fClientType">نوع العميل</span>
+                  <select id="o-client">
+                    <option value="individual" data-i18n="individual">أفراد</option>
+                    <option value="company" data-i18n="company">شركة</option>
+                  </select></label>
+                <label><span data-i18n="fCompany">اسم الشركة</span>
+                  <input type="text" id="o-company"></label>
+                <label><span data-i18n="fService">الخدمة</span>
+                  <select id="o-service"></select></label>
+                <label><span data-i18n="fPackage">الباقة</span>
+                  <select id="o-package"></select></label>
+                <label id="o-cups-wrap" hidden><span data-i18n="fCups">عدد الأكواب</span>
+                  <input type="number" id="o-cups" min="50" step="10"></label>
+                <label><span data-i18n="fEventDate">يوم المناسبة</span>
+                  <input type="date" id="o-date" required></label>
+                <label><span data-i18n="city">المدينة</span>
+                  <select id="o-city"></select></label>
+                <label><span data-i18n="fDays">عدد الأيام</span>
+                  <input type="number" id="o-days" min="1" max="30" value="1"></label>
+                <label><span data-i18n="fBefore">السعر قبل الخصم (ر.س)</span>
+                  <input type="number" id="o-before" min="0" step="0.01"></label>
+                <label><span data-i18n="fTotal">السعر بعد الخصم (ر.س)</span>
+                  <input type="number" id="o-total" min="0" step="0.01"></label>
+                <label><span data-i18n="status">الحالة</span>
+                  <select id="o-status">
+                    <option value="new" data-i18n="stNew">جديد</option>
+                    <option value="contacted" data-i18n="stContacted">تواصلنا</option>
+                    <option value="confirmed" selected data-i18n="stConfirmed">مؤكّد</option>
+                  </select></label>
+                <label class="wide"><span data-i18n="dNotes">ملاحظات</span>
+                  <input type="text" id="o-notes"></label>
+              </div>
+              <div class="fill-actions">
+                <button type="submit" class="btn btn-solid btn-sm" data-i18n="saveOrder">حفظ الحجز</button>
+                <span class="fill-msg" id="o-msg"></span>
+              </div>
+            </form>
+          </div>
+        </details>
+
         <div class="toolbar">
           <label class="f grow">
             <span data-i18n="searchOrders">بحث</span>
@@ -359,9 +414,9 @@
   </div>
 </div>
 
-<script src="assets/js/dash-i18n.js?v=202610071041"></script>
-<script src="assets/js/catalog.js?v=202610071041"></script>
-<script src="assets/js/config.js?v=202610071041"></script>
-<script src="assets/js/dashboard.js?v=202610071041"></script>
+<script src="assets/js/dash-i18n.js?v=202610071046"></script>
+<script src="assets/js/catalog.js?v=202610071046"></script>
+<script src="assets/js/config.js?v=202610071046"></script>
+<script src="assets/js/dashboard.js?v=202610071046"></script>
 </body>
 </html>

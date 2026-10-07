@@ -1076,3 +1076,21 @@ tr.row-soon td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
 
 /* يوم أقفله حجز، لا المدير — يُميَّز حتى لا يُفتح بالخطأ */
 .pill-auto { background: var(--brand-wash); color: var(--brand-deep); }
+
+/* نموذج الحجز اليدوي يُعاد استخدام شبكة حقول التفاصيل نفسها */
+.add-order { margin-block-end: var(--sp-3); }
+.add-order .hint { margin-block-end: var(--sp-3); }
+.add-order .fill-grid select {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.52rem 0.7rem;
+  font-size: 0.88rem;
+  color: var(--ink);
+}
+.add-order .fill-grid select:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-ring);
+}

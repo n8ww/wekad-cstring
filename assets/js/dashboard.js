@@ -271,6 +271,72 @@
     }
   }
 
+  // ==========================================================================
+  //  حجز يدوي — العميل الذي يتصل بدل أن يحجز من الموقع
+  // ==========================================================================
+
+  /** نفس صيغة مرجع الموقع، بحروف لا تلتبس عند الإملاء في الهاتف. */
+  function newRef() {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let tail = '';
+    crypto.getRandomValues(new Uint8Array(5))
+      .forEach((b) => { tail += alphabet[b % alphabet.length]; });
+    return `WK-${tail}`;
+  }
+
+  /** يملأ قوائم النموذج من الكتالوج، فلا تتكرّر الأسماء في مكانين. */
+  function fillOrderForm() {
+    const c = cat();
+    if (!c || !$('#o-service')) return;
+
+    $('#o-service').innerHTML = ['counter', 'flask']
+      .map((k) => `<option value="${k}">${esc(c.name(k))}</option>`).join('');
+
+    $('#o-city').innerHTML = Object.keys(c.CITIES)
+      .map((k) => `<option value="${esc(k)}">${esc(c.city(k))}</option>`).join('');
+
+    syncPackageOptions();
+  }
+
+  /** الباقات تتبع الخدمة المختارة؛ الحافظات لا تُقاس بالأكواب. */
+  function syncPackageOptions() {
+    const c = cat();
+    const service = $('#o-service')?.value || 'counter';
+    const select = $('#o-package');
+    if (!c || !select) return;
+
+    select.innerHTML = service === 'counter'
+      ? c.PACKAGES.map((n) => `<option value="p${n}">${n} ${c.unit('كوب')}</option>`).join('')
+        + `<option value="custom">${esc(c.name('custom'))}</option>`
+      : c.FLASKS.map((id) => `<option value="${id}">${esc(c.name(id))}</option>`).join('');
+
+    syncCupsField();
+  }
+
+  function syncCupsField() {
+    const wrap = $('#o-cups-wrap');
+    if (wrap) wrap.hidden = $('#o-package')?.value !== 'custom';
+  }
+
+  /**
+   * يُدرج الطلب بنفس مسار الموقع (المفتاح العام) حتى يعمل مع سياسات
+   * قاعدة البيانات الحالية بلا صلاحيات جديدة، ويُطلق مشغّل إقفال اليوم.
+   */
+  async function saveManualOrder(row) {
+    const response = await fetch(`${cfg.SUPABASE_URL}/rest/v1/orders`, {
+      method: 'POST',
+      headers: {
+        apikey: cfg.SUPABASE_KEY,
+        Authorization: `Bearer ${cfg.SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify(row),
+    });
+    if (response.ok) return { ok: true };
+    return { ok: false, error: (await response.text()).slice(0, 180) };
+  }
+
   async function createStaffAccount(email, password) {
     const response = await fetch(`${cfg.SUPABASE_URL}/auth/v1/signup`, {
       method: 'POST',
@@ -1411,6 +1477,7 @@
       checksByOrder = await fetchChecks(allOrders.slice(0, 200).map((r) => r.id));
       applyRange();
       fillCityFilter();
+      fillOrderForm();
       checkConfirmSetting();
       showPage(currentPage());
       stampSync();
@@ -1510,6 +1577,7 @@
       if ($('#dash') && !$('#dash').hidden) {
         renderKpis(); renderPanels(); renderTable();
         fillCityFilter();                 // أسماء المدن و"الكل" تتبع اللغة
+        fillOrderForm();
         if (currentPage() === 'users') renderStaff();
         if (currentPage() === 'closed') renderBlocked();
         showPage(currentPage());
@@ -1654,6 +1722,84 @@
       const sent = await sendReset(email);
       button.textContent = sent ? t('resetSent') : t('resetFail');
       if (!sent) button.disabled = false;
+    });
+
+    // ---------- حجز يدوي ----------
+    $('#o-service')?.addEventListener('change', syncPackageOptions);
+    $('#o-package')?.addEventListener('change', syncCupsField);
+
+    $('#order-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = $('#o-msg');
+      const button = $('button[type="submit"]', e.target);
+      const v = (sel) => $(sel).value.trim();
+      const num = (sel) => ($(sel).value === '' ? null : Number($(sel).value));
+
+      const phone = v('#o-phone').replace(/[\s-]/g, '');
+      if (v('#o-name').length < 3 || !/^(?:\+?9665|05|5)\d{8}$/.test(phone) || !v('#o-date')) {
+        msg.textContent = t('badOrder');
+        msg.className = 'fill-msg bad';
+        return;
+      }
+
+      const c = cat();
+      const service = v('#o-service');
+      const pkg = v('#o-package');
+      const isCustom = pkg === 'custom';
+      const cups = isCustom ? num('#o-cups') : Number(String(pkg).replace('p', ''));
+      const day = v('#o-date');
+
+      const row = {
+        ref: newRef(),
+        service,
+        package_id: pkg,
+        package_name: service === 'counter'
+          ? (isCustom ? `${c.NAMES.custom.ar} — ${cups || 0} كوب` : `${cups} كوب`)
+          : c.NAMES[pkg].ar,
+        custom_cups: isCustom ? cups : null,
+        custom_request: null,
+        package_price: 0,
+        days: num('#o-days') || 1,
+        setup_date: day,
+        setup_time: null,
+        event_date: day,
+        event_time: null,
+        city: v('#o-city'),
+        district: null,
+        venue: null,
+        lat: null,
+        lng: null,
+        client_type: v('#o-client'),
+        customer_name: v('#o-name'),
+        phone,
+        company: v('#o-client') === 'company' ? (v('#o-company') || null) : null,
+        vat: null,
+        notes: v('#o-notes') || null,
+        included_baristas: service === 'flask' ? 0 : 1,
+        items: [],
+        desserts_total: 0,
+        addons_total: 0,
+        total: num('#o-total') ?? 0,
+        price_before: num('#o-before'),
+        status: v('#o-status'),
+      };
+
+      button.disabled = true;
+      msg.textContent = t('working');
+      msg.className = 'fill-msg';
+      const result = await saveManualOrder(row);
+      button.disabled = false;
+
+      if (!result.ok) {
+        msg.textContent = `${t('failSave')} — ${result.error}`;
+        msg.className = 'fill-msg bad';
+        return;
+      }
+      msg.textContent = t('orderSaved', { ref: row.ref });
+      msg.className = 'fill-msg ok';
+      e.target.reset();
+      syncPackageOptions();
+      showDashboard({ quiet: true });        // يظهر في الجدول ويُقفل يومه
     });
 
     $('#staff-list').addEventListener('click', async (e) => {

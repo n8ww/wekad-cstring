@@ -64,6 +64,10 @@
     أخرى:    { ar: 'أخرى',    en: 'Other',   tl: 'Iba pa' },
   };
 
+  // الباقات المعروضة في الموقع، تُستعمل كذلك لبناء نموذج الحجز اليدوي
+  const PACKAGES = [25, 50, 100, 200, 300];
+  const FLASKS = ['f1', 'f2'];
+
   const lang = () => (window.WekadI18n ? window.WekadI18n.lang : 'ar');
 
   /** اسم صنف بلغة العرض. `fallback` هو الاسم المحفوظ وقت الحجز. */
@@ -87,5 +91,5 @@
     return row[lang()] || row.ar;
   }
 
-  window.WekadCatalog = { NAMES, UNITS, CITIES, name, unit, city };
+  window.WekadCatalog = { NAMES, UNITS, CITIES, PACKAGES, FLASKS, name, unit, city };
 })();
