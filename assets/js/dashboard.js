@@ -1138,6 +1138,14 @@
     return null;
   }
 
+  /**
+   * الروابط المختصرة لا تحمل إحداثيات، والمتصفح لا يستطيع تتبّع تحويلها
+   * (CORS)، فنميّزها لنقول للمستخدم ما العمل بدل رسالة فشل عامة.
+   */
+  function isShortMapLink(text) {
+    return /(?:maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/kgs)/i.test(String(text || ''));
+  }
+
   /** يكتب الإحداثيات في الحقول المخفية ويحرّك الدبوس والنص. */
   function setPin(box, lat, lng, { move = true } = {}) {
     const form = box.closest('form.fill');
@@ -1203,9 +1211,10 @@
     const say = (key) => { $('[data-pin-readout]', box).textContent = t(key); };
 
     if (e.target.matches('[data-pin-apply]')) {
-      const found = parseLatLng($('[data-pin-paste]', box).value);
+      const text = $('[data-pin-paste]', box).value;
+      const found = parseLatLng(text);
       if (found) { setPin(box, found.lat, found.lng); $('[data-pin-paste]', box).value = ''; }
-      else say('fPinBad');
+      else say(isShortMapLink(text) ? 'fPinShort' : 'fPinBad');
     } else if (e.target.matches('[data-pin-here]')) {
       if (!navigator.geolocation) return say('fPinNoGeo');
       navigator.geolocation.getCurrentPosition(
@@ -1755,12 +1764,23 @@
     ['#sync', '#sync-staff'].forEach((sel) => { const el = $(sel); if (el) el.textContent = text; });
   }
 
+  /**
+   * التحديث الدوري يعيد رسم الجدول، وإعادة الرسم تستبدل نموذج «تفاصيل»
+   * المفتوح فتضيع تعديلات لم تُحفظ بعد — الدبوس والحي والسعر. فنؤجّله ما دام
+   * أحد الصفوف مفتوحاً أو المؤشر داخل خانة.
+   */
+  function editingNow() {
+    if ($$('tr.row-detail').some((row) => !row.hidden)) return true;
+    const el = document.activeElement;
+    return Boolean(el && el.matches('input, textarea, select'));
+  }
+
   /** يُبقي اللوحة حيّة: تحديث دوري، وفوري عند العودة إلى التبويب. */
   function startAutoRefresh() {
     clearInterval(autoTimer);
     autoTimer = setInterval(() => {
       const open = !$('#dash').hidden || !$('#staff-view').hidden;
-      if (!document.hidden && open) showDashboard({ quiet: true });
+      if (!document.hidden && open && !editingNow()) showDashboard({ quiet: true });
     }, 30000);
   }
 
@@ -2305,7 +2325,9 @@
 
     document.addEventListener('visibilitychange', () => {
       const open = !$('#dash').hidden || !$('#staff-view').hidden;
-      if (!document.hidden && open && session?.access_token) showDashboard({ quiet: true });
+      if (!document.hidden && open && session?.access_token && !editingNow()) {
+        showDashboard({ quiet: true });
+      }
     });
 
     loadSession();

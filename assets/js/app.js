@@ -944,9 +944,13 @@
     });
     $('#btn-locate').addEventListener('click', locateMe);
     $('#btn-map-link').addEventListener('click', () => {
-      const found = readMapLink($('#map-link').value);
+      const text = $('#map-link').value;
+      const found = readMapLink(text);
       if (found) { setPoint(found.lat, found.lng, true); $('#map-link').value = ''; }
-      else $('#map-readout').textContent = 'ما قدرنا نقرأ الموقع من هذا الرابط — جرّب تحريك الدبوس.';
+      else if (/(?:maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/kgs)/i.test(text)) {
+        // الرابط المختصر بلا إحداثيات، والمتصفح لا يتتبّع تحويله
+        $('#map-readout').textContent = 'هذا رابط مختصر — افتحه أولاً، ثم انسخ الرابط الطويل والصقه هنا، أو حرّك الدبوس على الخريطة.';
+      } else $('#map-readout').textContent = 'ما قدرنا نقرأ الموقع من هذا الرابط — جرّب تحريك الدبوس.';
     });
 
     $('#btn-back').addEventListener('click', () => goto(state.step - 1));
