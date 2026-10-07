@@ -1007,6 +1007,11 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
   background: rgba(159, 216, 169, 0.18);
   color: #a9dfb3;
 }
+/* سقوط الشمول ليس خطأ، فالشارة محايدة لا حمراء */
+.inc-badge--off {
+  background: rgba(226, 198, 142, 0.16);
+  color: #e2c68e;
+}
 .inc-text { flex: 1; min-width: 12rem; color: rgba(237, 230, 218, 0.8); line-height: 1.7; }
 .inc-text strong { color: #a9dfb3; font-family: var(--font-num); font-weight: 500; font-size: 1.05rem; }
 .inc-text em {

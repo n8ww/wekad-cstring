@@ -181,8 +181,15 @@
     return round2(lineItems().filter((l) => l.dessert).reduce((sum, l) => sum + l.total, 0));
   }
 
+  /** هل طلب العميل باريستا امرأة؟ اختيارها يُسقط الباريستا المجانية. */
+  function wantsFemaleBarista() {
+    return (state.qty.barista || 0) > 0;
+  }
+
   function includedBaristas() {
     if (state.service === 'flask') return 0;      // الحافظات بلا باريستا
+    // الباريستا المجانية رجل؛ من يطلب باريستا امرأة يصير طاقمه كله مدفوعاً
+    if (wantsFemaleBarista()) return 0;
     const base = chosenBase();
     const cups = state.service === 'counter' && base ? base.cups : 0;
     const bigPackage = cups >= BARISTA_RULE.bonusFromCups;
@@ -309,7 +316,7 @@
 
     const rows = [
       ['الخدمة', SERVICES[state.service].ar],
-      ['باريستا مشمولة مجاناً', `${includedBaristas()}`],
+      ['باريستا مشمولة مجاناً', wantsFemaleBarista() ? 'لا يوجد — اختيرت باريستا امرأة' : `${includedBaristas()}`],
       [state.service === 'counter' ? 'الباقة' : 'الحافظات', sizeText],
       ...(isCustom() ? [['طلبك الخاص', state.customRequest]] : []),
       ['يوم المناسبة', state.date ? prettyPicked(state.date) : '—'],
@@ -337,6 +344,18 @@
       box.innerHTML = `
         <span class="inc-badge">خدمة الحافظات</span>
         <span class="inc-text">تُسلَّم جاهزة ومحفوظة على حرارتها — <strong>بدون باريستا</strong>.</span>`;
+      return;
+    }
+
+    // اختيار الباريستا المرأة يُلغي المجانية، والعميل لازم يعرف السبب قبل التأكيد
+    if (wantsFemaleBarista()) {
+      box.innerHTML = `
+        <span class="inc-badge inc-badge--off">لا باريستا مجانية</span>
+        <span class="inc-text">
+          الباريستا المجانية رجل. باختيارك <strong>باريستا امرأة</strong> يسقط هذا الشمول،
+          ويُحتسب كامل الطاقم ضمن الإضافات.
+          <em>احذف الباريستا المرأة من الإضافات لترجع المجانية.</em>
+        </span>`;
       return;
     }
 
@@ -570,7 +589,9 @@
     out.push(HR);
     out.push('*٣ · الإضافات*');
     out.push(HR);
-    out.push(`▪︎ باريستا مشمولة مجاناً: ${includedBaristas()}`);
+    out.push(wantsFemaleBarista()
+      ? '▪︎ باريستا مشمولة مجاناً: لا يوجد — العميل اختار باريستا امرأة'
+      : `▪︎ باريستا مشمولة مجاناً: ${includedBaristas()}`);
     if (addons.length) {
       addons.forEach((l) => {
         out.push(`▪︎ ${l.ar}`);
