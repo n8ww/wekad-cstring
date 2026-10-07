@@ -1378,44 +1378,129 @@
   }
 
   // ---------- تصدير إلى إكسل ----------
-  function exportCsv() {
-    const rows = visibleRows();
-    const headers = [
-      'رقم الطلب', 'تاريخ الطلب', 'الحالة', 'العميل', 'نوع العميل', 'الشركة',
-      'الرقم الضريبي', 'الجوال', 'الخدمة', 'الباقة', 'الأيام',
-      'تاريخ التركيب', 'وقت التركيب', 'تاريخ بدء العمل', 'وقت بدء العمل', 'طلب خاص', 'المدينة', 'الحي', 'الموقع', 'رابط الخريطة', 'باريستا مشمولة',
-      'الإضافات', 'الحلى', 'السعر قبل الخصم', 'نسبة الخصم %', 'الإجمالي', 'الأصناف', 'ملاحظات',
+
+  /**
+   * أعمدة التصدير. `t` نوع الخلية، وعليه يتوقف هل يجمع إكسل العمود أم لا:
+   *   txt   نص صريح — الجوال ورقم الطلب، حتى لا يبتلع إكسل الصفر البادئ
+   *   num   رقم صحيح
+   *   money رقم بفاصلة آلاف وخانتين عشريتين
+   *   date  تاريخ حقيقي يُفرز زمنياً لا أبجدياً
+   *   link  رابط قابل للنقر
+   */
+  function exportColumns() {
+    const money = '#,##0.00';
+    return [
+      { h: t('thRef'),       t: 'txt',   w: 12, v: (r) => r.ref },
+      { h: t('thCreated'),   t: 'date',  w: 17, v: (r) => r.created_at, z: 'yyyy-mm-dd hh:mm' },
+      { h: t('status'),      t: 'txt',   w: 10, v: (r) => statusName(r.status) },
+      { h: t('thCustomer'),  t: 'txt',   w: 22, v: (r) => r.customer_name },
+      { h: t('fClientType'), t: 'txt',   w: 10, v: (r) => (r.client_type === 'company' ? t('company') : t('individual')) },
+      { h: t('fCompany'),    t: 'txt',   w: 18, v: (r) => r.company },
+      { h: t('fVat'),        t: 'txt',   w: 16, v: (r) => r.vat },
+      { h: t('fPhone'),      t: 'txt',   w: 14, v: (r) => r.phone },
+      { h: t('fService'),    t: 'txt',   w: 16, v: (r) => (cat() ? cat().name(r.service) : r.service) },
+      { h: t('thPackage'),   t: 'txt',   w: 16, v: (r) => r.package_name },
+      { h: t('fDays'),       t: 'num',   w: 7,  v: (r) => r.days },
+      { h: t('fSetupDate'),  t: 'date',  w: 12, v: (r) => r.setup_date },
+      { h: t('fSetupTime'),  t: 'txt',   w: 9,  v: (r) => r.setup_time },
+      { h: t('fEventDate'),  t: 'date',  w: 12, v: (r) => r.event_date },
+      { h: t('fEventTime'),  t: 'txt',   w: 9,  v: (r) => r.event_time },
+      { h: t('fCustomReq'),  t: 'txt',   w: 26, v: (r) => r.custom_request },
+      { h: t('fCity'),       t: 'txt',   w: 11, v: (r) => cityName(r.city) },
+      { h: t('fDistrict'),   t: 'txt',   w: 14, v: (r) => r.district },
+      { h: t('fVenue'),      t: 'txt',   w: 26, v: (r) => r.venue },
+      { h: t('thMapLink'),   t: 'link',  w: 14, v: (r) => (r.lat && r.lng ? `https://maps.google.com/?q=${r.lat},${r.lng}` : '') },
+      { h: t('dBaristas'),   t: 'num',   w: 9,  v: (r) => r.included_baristas },
+      { h: t('dAddons'),     t: 'money', w: 12, v: (r) => r.addons_total, z: money },
+      { h: t('dSweets'),     t: 'money', w: 12, v: (r) => r.desserts_total, z: money },
+      { h: t('dBefore'),     t: 'money', w: 14, v: (r) => r.price_before, z: money },
+      { h: t('thDiscPct'),   t: 'num',   w: 10, v: (r) => discountOf(r)?.pct ?? null },
+      { h: t('thTotal'),     t: 'money', w: 14, v: (r) => r.total, z: money },
+      { h: t('fItems'),      t: 'txt',   w: 40, v: (r) => itemsOf(r)
+          .map((i) => `${itemName(i)} ×${i.qty}${i.unit ? ` ${unitName2(i.unit)}` : ''}`).join(' · ') },
+      { h: t('fNotes'),      t: 'txt',   w: 30, v: (r) => r.notes },
     ];
+  }
 
-    const cell = (v) => {
-      const s = String(v ?? '').replace(/"/g, '""');
-      return `"${s}"`;
-    };
+  // إكسل يعدّ الأيام من ١٨٩٩-١٢-٣٠
+  const XL_EPOCH = Date.UTC(1899, 11, 30);
 
-    const lines = rows.map((r) => [
-      r.ref,
-      String(r.created_at || '').slice(0, 19).replace('T', ' '),
-      statusName(r.status),
-      r.customer_name,
-      r.client_type === 'company' ? 'شركة' : 'أفراد',
-      r.company, r.vat, r.phone,
-      r.service === 'counter' ? 'ركن ضيافة القهوة' : 'خدمة الحافظات',
-      r.package_name, r.days, r.setup_date, r.setup_time, r.event_date, r.event_time,
-      r.custom_request, r.city, r.district, r.venue,
-      r.lat && r.lng ? `https://maps.google.com/?q=${r.lat},${r.lng}` : '',
-      r.included_baristas, r.addons_total, r.desserts_total,
-      r.price_before ?? '', discountOf(r)?.pct ?? '', r.total,
-      itemsOf(r).map((i) => `${i.name} ×${i.qty}`).join(' | '),
-      r.notes,
-    ].map(cell).join(','));
+  /**
+   * رقم إكسل التسلسلي للتاريخ.
+   * نحسبه من مكوّنات التاريخ لا من طابعه الزمني: تمرير كائن Date يجعل المكتبة
+   * تطرح فرق التوقيت، وتوقيت الرياض التاريخي ‎+03:06:52 يترك كسر ٥٢ ثانية في
+   * كل خلية، فتفشل المطابقة والفرز على اليوم.
+   */
+  function excelSerial(v, withTime) {
+    if (!v) return null;
+    const dayOnly = String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dayOnly) {
+      return (Date.UTC(+dayOnly[1], +dayOnly[2] - 1, +dayOnly[3]) - XL_EPOCH) / 86400000;
+    }
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return null;
+    const days = (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - XL_EPOCH) / 86400000;
+    if (!withTime) return days;
+    return days + (d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds()) / 86400;
+  }
 
-    // BOM حتى يفتح إكسل النص العربي بترميز صحيح
-    const csv = '﻿' + [headers.map(cell).join(','), ...lines].join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
+  function exportSheet() {
+    const XLSX = window.XLSX;
+    const rows = visibleRows();
+    const cols = exportColumns();
+    const stamp = new Date().toISOString().slice(0, 10);
+    const file = `wekad-orders-${stamp}`;
+
+    // بلا المكتبة نرجع إلى CSV، لكن بفاصلة منقوطة: إكسل العربي يقرأ الفاصلة
+    // العادية حرفاً عادياً فيحشر الصف كله في عمود واحد
+    if (!XLSX) return exportCsvFallback(rows, cols, file);
+
+    const aoa = [cols.map((c) => c.h)];
+    rows.forEach((r) => aoa.push(cols.map((c) => {
+      const raw = c.v(r);
+      if (raw === null || raw === undefined || raw === '') return '';
+      if (c.t === 'date')  return excelSerial(raw, /h/.test(c.z || '')) ?? '';
+      if (c.t === 'num' || c.t === 'money') {
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : '';
+      }
+      return String(raw);
+    })));
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = cols.map((c) => ({ wch: c.w }));
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range({
+      s: { r: 0, c: 0 }, e: { r: 0, c: cols.length - 1 },
+    }) };
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 };   // صف العناوين يبقى ظاهراً
+
+    cols.forEach((c, ci) => {
+      for (let ri = 1; ri <= rows.length; ri += 1) {
+        const cell = ws[XLSX.utils.encode_cell({ r: ri, c: ci })];
+        if (!cell || cell.v === '') continue;
+        if (c.t === 'date')  { cell.t = 'n'; cell.z = c.z || 'yyyy-mm-dd'; }
+        else if (c.z)        { cell.z = c.z; }
+        else if (c.t === 'txt') { cell.t = 's'; }   // الجوال نصاً: يحفظ الصفر البادئ
+        else if (c.t === 'link') { cell.l = { Target: String(cell.v) }; }
+      }
+    });
+
+    const wb = XLSX.utils.book_new();
+    wb.Workbook = { Views: [{ RTL: window.WekadI18n.lang === 'ar' }] };
+    XLSX.utils.book_append_sheet(wb, ws, t('shOrders'));
+    XLSX.writeFile(wb, `${file}.xlsx`, { compression: true });
+  }
+
+  /** مخرج احتياطي إن تعذّر تحميل المكتبة. */
+  function exportCsvFallback(rows, cols, file) {
+    const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const body = rows.map((r) => cols.map((c) => cell(c.v(r))).join(';'));
+    // sep= سطر توجيه يفهمه إكسل مهما كانت لغة النظام، و﻿ للترميز العربي
+    const csv = '﻿' + ['sep=;', cols.map((c) => cell(c.h)).join(';'), ...body].join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `wekad-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `${file}.csv`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
@@ -1805,7 +1890,7 @@
 
     $$('.logout').forEach((b) => b.addEventListener('click', () => { clearSession(); role = null; showLogin(); }));
     $$('.refresh').forEach((b) => b.addEventListener('click', () => showDashboard()));
-    $('#export').addEventListener('click', exportCsv);
+    $('#export').addEventListener('click', exportSheet);
     $('#q').addEventListener('input', renderTable);
     $('#filter-status').addEventListener('change', renderTable);
 
