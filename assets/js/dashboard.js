@@ -712,15 +712,16 @@
 
   /** كم جلسة وصلت كل خطوة من خطوات الحجز. */
   function funnelCounts(rows) {
+    // الترتيب هنا لازم يطابق PANES في app.js: client ← service ← when ← review.
+    // خطوتا size و items أُلغيتا من الموقع، فحذفهما يمنع صفّين صفريّين دائمين.
     const stepOrder = [
-      [t('fVisitors'), (v) => v.event === 'page_view'],
-      [t('fStarted'),  (v) => v.event === 'begin_checkout'],
-      [t('fSize'),     (v) => v.event === 'booking_step' && v.step === 'size'],
-      [t('fItems'),    (v) => v.event === 'booking_step' && v.step === 'items'],
-      [t('fWhen'),     (v) => v.event === 'booking_step' && v.step === 'when'],
-      [t('fClient'),   (v) => v.event === 'booking_step' && v.step === 'client'],
-      [t('fReview'),   (v) => v.event === 'booking_step' && v.step === 'review'],
-      [t('fDone'),     (v) => v.event === 'purchase'],
+      [t('fVisitors'),    (v) => v.event === 'page_view'],
+      [t('fStarted'),     (v) => v.event === 'begin_checkout'],
+      [t('fClient'),      (v) => v.event === 'booking_step' && v.step === 'client'],
+      [t('fStepService'), (v) => v.event === 'booking_step' && v.step === 'service'],
+      [t('fWhen'),        (v) => v.event === 'booking_step' && v.step === 'when'],
+      [t('fReview'),      (v) => v.event === 'booking_step' && v.step === 'review'],
+      [t('fDone'),        (v) => v.event === 'purchase'],
     ];
     return stepOrder.map(([label, test]) => [
       label,

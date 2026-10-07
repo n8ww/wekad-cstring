@@ -440,9 +440,10 @@
   // ---------- steps ----------
   const PANES = ['client', 'service', 'when', 'review'];
 
+  // تطابق PANES أعلاه وعناوين الخطوات في index.html حرفياً، لأن اللوحة
+  // تعرض هذه الأسماء في «مسار الحجز»
   const STEP_LABELS = {
-    service: 'الخدمة', size: 'الحجم', items: 'الحلى والإضافات',
-    when: 'الموعد والموقع', client: 'بياناتك', review: 'المراجعة',
+    client: 'بياناتك', service: 'الخدمة', when: 'يوم المناسبة', review: 'التأكيد',
   };
   let reachedCheckout = false;
 
