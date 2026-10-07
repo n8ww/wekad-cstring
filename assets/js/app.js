@@ -117,7 +117,12 @@
     company: '',
     vat: '',
     notes: '',
+    lat: null,
+    lng: null,
   };
+
+  const MAP_CENTER = [26.4207, 50.0888];   // الدمام / الخبر
+  const MAP_ZOOM = 11;
 
   // Analytics is optional: the app must behave identically when it is absent.
   const track = (name, params) => { try { window.wekadTrack?.(name, params); } catch { /* never break the form */ } };
@@ -321,6 +326,7 @@
       ...(isCustom() ? [['طلبك الخاص', state.customRequest]] : []),
       ['يوم المناسبة', state.date ? prettyPicked(state.date) : '—'],
       ['المدينة', state.city],
+      ...(mapsLink() ? [['موقع المناسبة', mapsLink(), 'link']] : []),
       ...t.lines.map((l) => [l.ar, `${fmt(l.qty)} ${l.unitAr}${l.pieces ? ` (${fmt(l.qty * l.pieces)} حبة)` : ''}`]),
       ['نوع العميل', state.clientType === 'company' ? 'شركة' : 'أفراد'],
       ...(state.clientType === 'company'
@@ -331,8 +337,13 @@
       ...(state.notes ? [['ملاحظات', state.notes]] : []),
     ];
 
-    $('#review').innerHTML =
-      rows.map(([k, v]) => `<div class="review-row"><dt>${k}</dt><dd>${escapeHtml(v)}</dd></div>`).join('');
+    // القيم من العميل تُهرَّب دائماً؛ الرابط وحده نبنيه نحن فيمرّ كما هو
+    $('#review').innerHTML = rows.map(([k, v, kind]) => {
+      const body = kind === 'link'
+        ? `<a href="${encodeURI(v)}" target="_blank" rel="noopener">فتح على الخريطة</a>`
+        : escapeHtml(v);
+      return `<div class="review-row"><dt>${k}</dt><dd>${body}</dd></div>`;
+    }).join('');
   }
 
   function renderIncluded() {
@@ -462,6 +473,7 @@
     $('#btn-send').hidden = !last;
 
     if (PANES[state.step] === 'service') syncSizePane();
+    if (PANES[state.step] === 'when') initMap();
 
     const paneName = PANES[state.step];
     if (state.step > 0 && !reachedCheckout) {
@@ -512,6 +524,89 @@
       if (state.clientType === 'company' && state.company.trim().length < 2) return 'اكتب اسم الشركة.';
     }
     return '';
+  }
+
+  // ---------- خريطة موقع المناسبة ----------
+  let map = null;
+  let marker = null;
+
+  /** رابط يفتح الموقع مباشرة في خرائط قوقل — هو ما يمشي عليه الفريق. */
+  function mapsLink() {
+    if (state.lat == null || state.lng == null) return '';
+    return `https://maps.google.com/?q=${state.lat.toFixed(6)},${state.lng.toFixed(6)}`;
+  }
+
+  function setPoint(lat, lng, recentre = false) {
+    state.lat = lat;
+    state.lng = lng;
+    if (marker) marker.setLatLng([lat, lng]);
+    else if (map) {
+      marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+      marker.on('dragend', () => {
+        const p = marker.getLatLng();
+        setPoint(p.lat, p.lng);
+      });
+    }
+    if (recentre && map) map.setView([lat, lng], Math.max(map.getZoom(), 15));
+    track('set_location', { city: state.city });
+    $('#map-readout').innerHTML = '<span class="ok">✓ تم تحديد الموقع</span>'
+      + ` <a href="${mapsLink()}" target="_blank" rel="noopener">فتح في خرائط Google</a>`;
+  }
+
+  function initMap() {
+    if (map) { setTimeout(() => map.invalidateSize(), 60); return; }
+    if (typeof L === 'undefined') { $('#map-fallback').hidden = false; return; }
+
+    map = L.map('map', { scrollWheelZoom: false }).setView(MAP_CENTER, MAP_ZOOM);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap',
+    }).addTo(map);
+    map.on('click', (e) => setPoint(e.latlng.lat, e.latlng.lng));
+
+    // الخطوة مخفية حتى الآن، فالخريطة تقيس ارتفاعاً صفراً ولا تطلب البلاطات
+    setTimeout(() => map.invalidateSize(), 60);
+    if (window.ResizeObserver) {
+      const el = $('#map');
+      new ResizeObserver(() => {
+        if (el.clientHeight > 0 && el.clientWidth > 0) map.invalidateSize();
+      }).observe(el);
+    }
+  }
+
+  function locateMe() {
+    if (!navigator.geolocation) {
+      $('#map-readout').textContent = 'المتصفح لا يدعم تحديد الموقع — حرّك الدبوس يدوياً.';
+      return;
+    }
+    $('#map-readout').textContent = 'جارٍ تحديد موقعك…';
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setPoint(pos.coords.latitude, pos.coords.longitude, true),
+      () => { $('#map-readout').textContent = 'تعذّر تحديد الموقع — حرّك الدبوس على الخريطة يدوياً.'; },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }
+
+  /** يقرأ الإحداثيات من رابط خرائط قوقل أو من نص «خط العرض، خط الطول». */
+  function readMapLink(text) {
+    const str = String(text || '').trim();
+    if (!str) return null;
+    const pats = [
+      /[?&]q=(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/,    // رابط واتساب
+      /[?&]ll=(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/,
+      /!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/,            // المكان داخل رابط place
+      /@(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/,          // مركز الشاشة
+      /^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/,
+    ];
+    for (const re of pats) {
+      const m = str.match(re);
+      if (!m) continue;
+      const lat = Number(m[1]);
+      const lng = Number(m[2]);
+      if (Number.isFinite(lat) && Number.isFinite(lng)
+        && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng };
+    }
+    return null;
   }
 
   // ---------- order handoff ----------
@@ -584,6 +679,7 @@
     out.push(`▪︎ اليوم: ${arabicDay(state.date)}`);
     out.push(`▪︎ التاريخ: ${prettyDate(state.date)}  (${state.date})`);
     out.push(`▪︎ المدينة: ${state.city}`);
+    if (mapsLink()) out.push(`▪︎ موقع المناسبة: ${mapsLink()}`);
     out.push('');
 
     // ---- 4. add-ons ----
@@ -678,8 +774,8 @@
       city: state.city,
       district: null,
       venue: null,
-      lat: null,
-      lng: null,
+      lat: state.lat,
+      lng: state.lng,
       client_type: state.clientType,
       customer_name: state.name,
       phone: state.phone,
@@ -846,6 +942,13 @@
       }
       goto(state.step + 1);
     });
+    $('#btn-locate').addEventListener('click', locateMe);
+    $('#btn-map-link').addEventListener('click', () => {
+      const found = readMapLink($('#map-link').value);
+      if (found) { setPoint(found.lat, found.lng, true); $('#map-link').value = ''; }
+      else $('#map-readout').textContent = 'ما قدرنا نقرأ الموقع من هذا الرابط — جرّب تحريك الدبوس.';
+    });
+
     $('#btn-back').addEventListener('click', () => goto(state.step - 1));
     $('#btn-send').addEventListener('click', confirmOrder);
     $('#btn-restart').addEventListener('click', () => {

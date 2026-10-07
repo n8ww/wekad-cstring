@@ -1007,6 +1007,64 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
   background: rgba(159, 216, 169, 0.18);
   color: #a9dfb3;
 }
+/* ---------- خريطة تحديد موقع المناسبة ---------- */
+.map-block { margin-block-start: 1.8rem; }
+.map-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-block-end: 0.7rem;
+  font-size: 0.88rem;
+  color: rgba(237, 230, 218, 0.62);
+}
+.map-head em { font-style: normal; color: rgba(237, 230, 218, 0.35); }
+.btn-xs { padding: 0.42rem 0.85rem; font-size: 0.8rem; gap: 0.4rem; }
+
+#map {
+  height: 320px;
+  border: 1px solid var(--sand-faint);
+  border-radius: 2px;
+  background: var(--green-700);
+  z-index: 1;
+}
+/* Tone the OSM tiles down so the map sits inside the brand palette. */
+#map .leaflet-tile-pane { filter: saturate(0.55) brightness(0.78) contrast(1.05); }
+#map .leaflet-control-attribution {
+  background: rgba(16, 23, 16, 0.75);
+  color: rgba(237, 230, 218, 0.5);
+  font-size: 0.65rem;
+}
+#map .leaflet-control-attribution a { color: rgba(222, 196, 158, 0.7); }
+#map .leaflet-bar a {
+  background: var(--green-700);
+  color: var(--sand);
+  border-color: var(--sand-faint);
+}
+#map .leaflet-bar a:hover { background: var(--green-500); }
+
+.map-hint { font-size: 0.8rem; color: rgba(237, 230, 218, 0.45); margin-block-start: 0.6rem; }
+.map-readout { font-size: 0.85rem; color: rgba(237, 230, 218, 0.6); margin-block-start: 0.3rem; }
+.map-readout .ok { color: #9fd8a9; font-weight: 500; }
+.map-readout a { color: var(--sand); text-decoration: underline; text-underline-offset: 3px; margin-inline-start: 0.5rem; }
+
+
+/* لصق رابط الموقع من واتساب — بديل حين يرفض المتصفح تحديد الموقع */
+.map-paste { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-block-start: 0.7rem; }
+.map-paste input {
+  flex: 1 1 14rem;
+  min-width: 0;
+  background: var(--green-700);
+  border: 1px solid var(--sand-faint);
+  border-radius: 2px;
+  padding: 0.55rem 0.7rem;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+}
+.map-paste input:focus { outline: none; border-color: var(--sand); }
+
 /* سقوط الشمول ليس خطأ، فالشارة محايدة لا حمراء */
 .inc-badge--off {
   background: rgba(226, 198, 142, 0.16);
