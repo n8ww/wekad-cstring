@@ -669,6 +669,15 @@ tr.row-soon td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
 .jt--main .jt-value { color: var(--brand-deep); font-size: 2rem; }
 .jt-value small { font-size: 0.9rem; font-weight: 400; color: var(--ink-muted); }
 .jt-sub { font-size: 0.78rem; color: var(--ink-muted); }
+/* التاريخ فوق الوقت: الطاقم يحتاج يعرف أي يوم قبل أي ساعة */
+.jt-date {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  line-height: 1.25;
+}
+.jt--main .jt-date { color: var(--brand-deep); }
+.jt-date.is-same { font-weight: 500; color: var(--ink-muted); }
 
 /* التفاصيل */
 .job-grid {
@@ -939,6 +948,111 @@ tr.row-soon td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
 .fill-msg { font-size: 0.82rem; }
 .fill-msg.ok { color: var(--brand); }
 .fill-msg.bad { color: var(--st-cancelled); }
+
+/* select و textarea يتبعان نفس شكل input في شبكة التفاصيل */
+.fill-grid select,
+.fill-grid textarea {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.52rem 0.7rem;
+  font: inherit;
+  font-size: 0.88rem;
+  color: inherit;
+}
+.fill-grid textarea { resize: vertical; min-height: 2.6rem; }
+.fill-grid select:focus,
+.fill-grid textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-ring);
+}
+
+/* عنوان مجموعة داخل التفاصيل */
+.fill-sec {
+  margin-block: 1.1rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+}
+
+/* ---------- دبوس الموقع ---------- */
+.pin {
+  margin-block-start: 0.9rem;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.pin-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.pin-readout { font-weight: 500; color: var(--ink-muted); }
+.pin .fill-hint { margin-block: 0.35rem 0.6rem; }
+.pin-map {
+  height: 260px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  z-index: 0;                      /* يبقى تحت القوائم المنسدلة للوحة */
+}
+/* بلا إنترنت أو بلا Leaflet: تبقى خانة اللصق صالحة */
+.pin-map.is-off { display: none; }
+.pin-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block-start: 0.6rem;
+}
+.pin-paste {
+  flex: 1 1 15rem;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.52rem 0.7rem;
+  font-size: 0.85rem;
+}
+.pin-paste:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-ring);
+}
+
+/* ---------- محرّر الأصناف ---------- */
+.items-edit { display: grid; gap: 0.5rem; }
+.item-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 2fr) 5rem minmax(4rem, 1fr) 6.5rem auto;
+  gap: 0.45rem;
+  align-items: center;
+}
+.item-row input {
+  width: 100%;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+}
+.item-row input:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-ring);
+}
+@media (max-width: 700px) {
+  .item-row { grid-template-columns: 1fr 1fr; }
+  .item-row input[data-f="name"] { grid-column: 1 / -1; }
+}
 
 /* وقت التركيب يصل بالمكالمة، فالفراغ هنا حالة منتظَرة لا خطأ */
 .jt-pending {

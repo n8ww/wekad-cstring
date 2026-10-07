@@ -52,6 +52,19 @@
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g,
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const dateOnly = (v) => (v ? String(v).slice(0, 10) : '—');
+  /**
+   * «الاثنين، 20 أكتوبر 2026» — اسم اليوم أولاً لأن الطاقم يقرأه قبل الرقم.
+   * الشهر بالاسم لا بالرقم: الفلبينية ترتّب شهر/يوم بينما العربية والإنجليزية
+   * ترتّبان يوم/شهر، فالأرقام وحدها تقرأ تاريخين مختلفين على نفس الكرت.
+   */
+  function dayLabel(v) {
+    if (!v) return '—';
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return dateOnly(v);
+    return new Intl.DateTimeFormat(locale(), {
+      weekday: 'long', day: 'numeric', month: 'short', year: 'numeric',
+    }).format(d);
+  }
   const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 
   function dateTime(iso) {
@@ -988,23 +1001,108 @@
   };
 
   /** حقول نكملها يدوياً بعد مكالمة العميل. */
+  /** خانة واحدة في شبكة التفاصيل. */
+  function fRow(label, name, type, value, extra = '') {
+    return `<label${extra.includes('wide') ? ' class="wide"' : ''}><span>${label}</span>`
+      + `<input type="${type}" name="${name}" value="${esc(value ?? '')}"${extra.replace('wide', '')}></label>`;
+  }
+
+  /** قائمة منسدلة داخل شبكة التفاصيل. */
+  function fSelect(label, name, options, current) {
+    const opts = options.map(([v, text]) =>
+      `<option value="${esc(v)}" ${String(v) === String(current ?? '') ? 'selected' : ''}>${esc(text)}</option>`).join('');
+    return `<label><span>${label}</span><select name="${name}">${opts}</select></label>`;
+  }
+
+  /** صف صنف واحد في محرّر الأصناف. */
+  function itemRow(it = {}) {
+    return `
+      <div class="item-row">
+        <input type="text"   data-f="name"  value="${esc(it.name || (it.id ? itemName(it) : ''))}" placeholder="${esc(t('fItemName'))}">
+        <input type="number" data-f="qty"   value="${esc(it.qty ?? '')}"   min="0" step="1"    placeholder="${esc(t('fItemQty'))}">
+        <input type="text"   data-f="unit"  value="${esc(it.unit || '')}"  placeholder="${esc(t('fItemUnit'))}">
+        <input type="number" data-f="total" value="${esc(it.total ?? '')}" min="0" step="0.01" placeholder="${esc(t('fItemTotal'))}">
+        <input type="hidden" data-f="id"    value="${esc(it.id || '')}">
+        <input type="hidden" data-f="raw"   value="${esc(JSON.stringify(it))}">
+        <button type="button" class="btn btn-ghost btn-sm" data-item-del>${t('fItemDel')}</button>
+      </div>`;
+  }
+
   function fillForm(r) {
-    const v = (x) => esc(x ?? '');
+    const c = cat();
+    const cities = c ? Object.keys(c.CITIES).map((k) => [k, c.city(k)]) : [];
+    const statuses = Object.keys(STATUS_KEYS).map((k) => [k, statusName(k)]);
+    const items = Array.isArray(r.items) ? r.items : [];
+    const hasPin = Number.isFinite(Number(r.lat)) && Number.isFinite(Number(r.lng))
+      && r.lat !== null && r.lng !== null;
+
     return `
       <form class="fill" data-fill="${r.id}">
         <h4>${t('fillTitle')}</h4>
         <p class="fill-hint">${t('fillHint')}</p>
+
+        <h5 class="fill-sec">${t('fSecLoc')}</h5>
         <div class="fill-grid">
-          <label><span>${t('fSetupDate')}</span><input type="date" name="setup_date" value="${v(r.setup_date)}"></label>
-          <label><span>${t('fSetupTime')}</span><input type="time" name="setup_time" value="${v(r.setup_time)}"></label>
-          <label><span>${t('fEventDate')}</span><input type="date" name="event_date" value="${v(r.event_date)}"></label>
-          <label><span>${t('fEventTime')}</span><input type="time" name="event_time" value="${v(r.event_time)}"></label>
-          <label><span>${t('fDays')}</span><input type="number" name="days" min="1" max="30" value="${v(r.days)}"></label>
-          <label><span>${t('fDistrict')}</span><input type="text" name="district" value="${v(r.district)}"></label>
-          <label><span>${t('fBefore')}</span><input type="number" name="price_before" min="0" step="0.01" value="${v(r.price_before)}"></label>
-          <label><span>${t('fTotal')}</span><input type="number" name="total" min="0" step="0.01" value="${v(r.total)}"></label>
-          <label class="wide"><span>${t('fVenue')}</span><input type="text" name="venue" value="${v(r.venue)}"></label>
+          ${fSelect(t('fCity'), 'city', [['', '—'], ...cities], r.city)}
+          ${fRow(t('fDistrict'), 'district', 'text', r.district)}
+          ${fRow(t('fVenue'), 'venue', 'text', r.venue, ' wide')}
         </div>
+
+        <div class="pin" data-pin>
+          <div class="pin-head">
+            <span>${t('fPin')}</span>
+            <span class="pin-readout" data-pin-readout>${hasPin
+              ? esc(t('fPinAt', { lat: Number(r.lat).toFixed(5), lng: Number(r.lng).toFixed(5) }))
+              : t('fPinNone')}</span>
+          </div>
+          <p class="fill-hint">${t('fPinHint')}</p>
+          <div class="pin-map" data-pin-map></div>
+          <div class="pin-tools">
+            <input type="text" class="pin-paste" data-pin-paste placeholder="${esc(t('fPinPaste'))}">
+            <button type="button" class="btn btn-solid btn-sm" data-pin-apply>${t('fPinApply')}</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-pin-here>${t('fPinHere')}</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-pin-clear>${t('fPinClear')}</button>
+          </div>
+          <input type="hidden" name="lat" value="${esc(hasPin ? r.lat : '')}">
+          <input type="hidden" name="lng" value="${esc(hasPin ? r.lng : '')}">
+        </div>
+
+        <h5 class="fill-sec">${t('fSecWhen')}</h5>
+        <div class="fill-grid">
+          ${fRow(t('fSetupDate'), 'setup_date', 'date', r.setup_date)}
+          ${fRow(t('fSetupTime'), 'setup_time', 'time', r.setup_time)}
+          ${fRow(t('fEventDate'), 'event_date', 'date', r.event_date)}
+          ${fRow(t('fEventTime'), 'event_time', 'time', r.event_time)}
+          ${fRow(t('fDays'), 'days', 'number', r.days, ' min="1" max="30"')}
+          ${fRow(t('fBaristas'), 'included_baristas', 'number', r.included_baristas, ' min="0" max="20"')}
+        </div>
+
+        <h5 class="fill-sec">${t('fSecMoney')}</h5>
+        <div class="fill-grid">
+          ${fRow(t('fBefore'), 'price_before', 'number', r.price_before, ' min="0" step="0.01"')}
+          ${fRow(t('fTotal'), 'total', 'number', r.total, ' min="0" step="0.01"')}
+          ${fRow(t('fAddons'), 'addons_total', 'number', r.addons_total, ' min="0" step="0.01"')}
+          ${fRow(t('fDesserts'), 'desserts_total', 'number', r.desserts_total, ' min="0" step="0.01"')}
+        </div>
+
+        <h5 class="fill-sec">${t('fSecOrder')}</h5>
+        <div class="fill-grid">
+          ${fSelect(t('fStatus'), 'status', statuses, r.status)}
+          ${fRow(t('fName'), 'customer_name', 'text', r.customer_name)}
+          ${fRow(t('fPhone'), 'phone', 'text', r.phone, ' dir="ltr"')}
+          ${fRow(t('fCompany'), 'company', 'text', r.company)}
+          ${fRow(t('fVat'), 'vat', 'text', r.vat)}
+          ${fRow(t('fPackage'), 'package_name', 'text', r.package_name, ' wide')}
+          <label class="wide"><span>${t('fCustomReq')}</span><textarea name="custom_request" rows="2">${esc(r.custom_request ?? '')}</textarea></label>
+          <label class="wide"><span>${t('fNotes')}</span><textarea name="notes" rows="2">${esc(r.notes ?? '')}</textarea></label>
+        </div>
+
+        <h5 class="fill-sec">${t('fItems')}</h5>
+        <div class="items-edit" data-items>
+          ${items.map((it) => itemRow(it)).join('')}
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" data-item-add>${t('fItemAdd')}</button>
+
         <div class="fill-actions">
           <button type="submit" class="btn btn-solid btn-sm">${t('fSaveDetails')}</button>
           <span class="fill-msg"></span>
@@ -1012,20 +1110,161 @@
       </form>`;
   }
 
+  // ---------- دبوس الموقع ----------
+
+  /**
+   * يقرأ إحداثيات من رابط خرائط قوقل أو من نص «خط العرض، خط الطول».
+   * يغطي الصيغ التي تصل من واتساب ومن شريط العنوان.
+   */
+  function parseLatLng(text) {
+    const str = String(text || '').trim();
+    if (!str) return null;
+    const pats = [
+      /[?&]q=(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/,   // ?q=lat,lng  (رابط واتساب)
+      /[?&]ll=(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/,
+      /!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/,           // المكان نفسه داخل رابط place — أدقّ من @
+      /@(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/,         // /@lat,lng,17z — مركز الشاشة
+      /^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/,        // إحداثيات مكتوبة يدوياً
+    ];
+    for (const re of pats) {
+      const m = str.match(re);
+      if (!m) continue;
+      const lat = Number(m[1]);
+      const lng = Number(m[2]);
+      if (Number.isFinite(lat) && Number.isFinite(lng)
+        && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng };
+    }
+    return null;
+  }
+
+  /** يكتب الإحداثيات في الحقول المخفية ويحرّك الدبوس والنص. */
+  function setPin(box, lat, lng, { move = true } = {}) {
+    const form = box.closest('form.fill');
+    const readout = $('[data-pin-readout]', box);
+    if (lat === null || lng === null) {
+      form.elements.lat.value = '';
+      form.elements.lng.value = '';
+      if (box._marker) { box._map.removeLayer(box._marker); box._marker = null; }
+      readout.textContent = t('fPinNone');
+      return;
+    }
+    form.elements.lat.value = lat.toFixed(6);
+    form.elements.lng.value = lng.toFixed(6);
+    readout.textContent = t('fPinAt', { lat: lat.toFixed(5), lng: lng.toFixed(5) });
+    if (!box._map) return;
+    if (box._marker) box._marker.setLatLng([lat, lng]);
+    else {
+      box._marker = window.L.marker([lat, lng], { draggable: true }).addTo(box._map);
+      box._marker.on('dragend', () => {
+        const q = box._marker.getLatLng();
+        setPin(box, q.lat, q.lng, { move: false });
+      });
+    }
+    if (move) box._map.setView([lat, lng], Math.max(box._map.getZoom(), 15));
+  }
+
+  /** خريطة واحدة لكل طلب، تُبنى عند أول فتح للتفاصيل فقط. */
+  function initPinMap(box) {
+    const el = $('[data-pin-map]', box);
+    if (!el || box._map) { if (box._map) box._map.invalidateSize(); return; }
+    if (!window.L) { el.classList.add('is-off'); return; }
+
+    const form = box.closest('form.fill');
+    const lat = Number(form.elements.lat.value);
+    const lng = Number(form.elements.lng.value);
+    const has = Number.isFinite(lat) && Number.isFinite(lng) && form.elements.lat.value !== '';
+
+    // الدمام/الخبر مركزاً افتراضياً لأن كل المناسبات في الشرقية
+    box._map = window.L.map(el, { scrollWheelZoom: false })
+      .setView(has ? [lat, lng] : [26.3927, 50.1], has ? 15 : 10);
+    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '&copy; OpenStreetMap',
+    }).addTo(box._map);
+    box._map.on('click', (e) => setPin(box, e.latlng.lat, e.latlng.lng, { move: false }));
+    if (has) setPin(box, lat, lng);
+
+    // قد تُبنى الخريطة والصف مخفي أو في صفحة أخرى، فتقيس ارتفاعاً صفراً ولا
+    // تطلب البلاطات. المراقب يعيد القياس أول ما يصير لها حجم فعلي.
+    if (window.ResizeObserver) {
+      const watch = new ResizeObserver(() => {
+        if (el.clientHeight > 0 && el.clientWidth > 0) box._map.invalidateSize();
+      });
+      watch.observe(el);
+      box._watch = watch;
+    }
+    setTimeout(() => box._map.invalidateSize(), 60);
+  }
+
+  /** أزرار الدبوس: تثبيت من رابط، موقعي الحالي، مسح. */
+  function pinClick(e) {
+    const box = e.target.closest('[data-pin]');
+    if (!box) return;
+    const say = (key) => { $('[data-pin-readout]', box).textContent = t(key); };
+
+    if (e.target.matches('[data-pin-apply]')) {
+      const found = parseLatLng($('[data-pin-paste]', box).value);
+      if (found) { setPin(box, found.lat, found.lng); $('[data-pin-paste]', box).value = ''; }
+      else say('fPinBad');
+    } else if (e.target.matches('[data-pin-here]')) {
+      if (!navigator.geolocation) return say('fPinNoGeo');
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setPin(box, pos.coords.latitude, pos.coords.longitude),
+        () => say('fPinNoGeo'),
+      );
+    } else if (e.target.matches('[data-pin-clear]')) {
+      setPin(box, null, null);
+    }
+  }
+
   /** حفظ نموذج التفاصيل اليدوية وتحديث الصف في الذاكرة بلا إعادة تحميل كاملة. */
   async function submitFill(form) {
     const id = form.dataset.fill;
     const data = new FormData(form);
+    const text = (k) => String(data.get(k) || '').trim();
+    const number = (k) => (data.get(k) === '' || data.get(k) === null ? null : Number(data.get(k)));
+
+    // الأصناف تُقرأ من المحرّر؛ الصف الفارغ تماماً يُهمل
+    const items = $$('.item-row', form).map((rowEl) => {
+      const f = (n) => $(`[data-f="${n}"]`, rowEl).value.trim();
+      if (!f('name') && !f('qty') && !f('total')) return null;
+      // نبني على الصنف الأصلي حتى لا تضيع حقول لا يعرضها المحرّر مثل total_pieces
+      let base = {};
+      try { base = JSON.parse(f('raw') || '{}'); } catch { base = {}; }
+      return {
+        ...base,
+        id: f('id') || null,
+        name: f('name'),
+        qty: f('qty') === '' ? null : Number(f('qty')),
+        unit: f('unit') || null,
+        total: f('total') === '' ? 0 : Number(f('total')),
+      };
+    }).filter(Boolean);
+
     const fields = {
       setup_date: data.get('setup_date'),
       setup_time: data.get('setup_time'),
       event_date: data.get('event_date'),
       event_time: data.get('event_time'),
-      days: data.get('days') ? Number(data.get('days')) : null,
-      district: String(data.get('district') || '').trim(),
-      venue: String(data.get('venue') || '').trim(),
-      total: data.get('total') === '' ? null : Number(data.get('total')),
-      price_before: data.get('price_before') === '' ? null : Number(data.get('price_before')),
+      days: number('days'),
+      included_baristas: number('included_baristas') ?? 0,
+      city: text('city'),
+      district: text('district'),
+      venue: text('venue'),
+      lat: number('lat'),
+      lng: number('lng'),
+      total: number('total'),
+      price_before: number('price_before'),
+      addons_total: number('addons_total') ?? 0,
+      desserts_total: number('desserts_total') ?? 0,
+      status: text('status'),
+      customer_name: text('customer_name'),
+      phone: text('phone'),
+      company: text('company'),
+      vat: text('vat'),
+      package_name: text('package_name'),
+      custom_request: text('custom_request'),
+      notes: text('notes'),
+      items,
     };
     const button = $('button[type="submit"]', form);
     button.disabled = true;
@@ -1040,12 +1279,17 @@
     }
 
     const row = allOrders.find((o) => String(o.id) === String(id));
-    if (row) Object.assign(row, fields);
+    if (row) Object.assign(row, fields, { items });
     applyRange();                       // الصف الرئيسي يعرض الموعد الجديد فوراً
 
     // إعادة الرسم تستبدل النموذج، فنعيد فتح التفاصيل ونضع الرسالة في النسخة الجديدة
     const detail = $(`tr[data-detail="${id}"]`);
-    if (detail) detail.hidden = false;
+    if (detail) {
+      detail.hidden = false;
+      // إعادة الرسم أتلفت الخريطة القديمة، فنبنيها على العقدة الجديدة
+      const box = $('[data-pin]', detail);
+      if (box) initPinMap(box);
+    }
     const toggle = $(`[data-toggle="${id}"]`);
     if (toggle) toggle.textContent = t('hide');
     const note = $(`form[data-fill="${id}"] .fill-msg`);
@@ -1261,12 +1505,15 @@
             <div class="job-times">
               <div class="jt jt--main">
                 <span class="jt-label">${t('arrivalTime')}</span>
+                <span class="jt-date tab">${esc(dayLabel(setup))}</span>
                 <span class="jt-value tab">${r.setup_time ? esc(r.setup_time) : `<em class="jt-pending">${t('notSet')}</em>`}</span>
               </div>
               <div class="jt">
                 <span class="jt-label">${t('serviceStart')}</span>
+                <span class="jt-date tab${sameDay ? ' is-same' : ''}">${sameDay
+                  ? t('sameDaySetup')
+                  : esc(r.event_date ? dayLabel(r.event_date) : t('noWorkDate'))}</span>
                 <span class="jt-value tab">${esc(r.event_time || '—')}</span>
-                ${sameDay ? '' : `<span class="jt-sub tab">${dateOnly(r.event_date)}</span>`}
               </div>
               <div class="jt">
                 <span class="jt-label">${t('serviceDays')}</span>
@@ -1950,11 +2197,24 @@
     });
 
     $('#table-body').addEventListener('click', (e) => {
+      // أزرار الدبوس ومحرّر الأصناف داخل التفاصيل
+      if (e.target.closest('[data-pin]')) { pinClick(e); return; }
+      if (e.target.matches('[data-item-del]')) { e.target.closest('.item-row').remove(); return; }
+      if (e.target.matches('[data-item-add]')) {
+        $('[data-items]', e.target.closest('form.fill')).insertAdjacentHTML('beforeend', itemRow());
+        return;
+      }
+
       const id = e.target.dataset?.toggle;
       if (!id) return;
       const row = $(`tr[data-detail="${id}"]`);
       row.hidden = !row.hidden;
       e.target.textContent = row.hidden ? t('details') : t('hide');
+      // الخريطة تُبنى بعد الظهور، وإلا قاست ارتفاعاً صفراً
+      if (!row.hidden) {
+        const box = $('[data-pin]', row);
+        if (box) initPinMap(box);
+      }
     });
 
     document.addEventListener('visibilitychange', () => {
