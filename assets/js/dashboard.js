@@ -211,7 +211,10 @@
       headers: { Prefer: 'return=minimal' },
       body: JSON.stringify(clean),
     });
-    return response.ok;
+    if (response.ok) return { ok: true };
+    // نص الخطأ يسمّي العمود المفقود، وعليه نميّز «لم تُشغَّل الهجرة» عن عطل عام
+    const detail = await response.text().catch(() => '');
+    return { ok: false, detail };
   }
 
   // ==========================================================================
@@ -989,6 +992,21 @@
    * الخصم مشتقّ لا مُدخَل: نكتب السعر قبل وبعد، والنسبة تُحسب منهما.
    * ترجع null إذا لم يُسجَّل سعر قبل الخصم أو لم يكن هناك فرق.
    */
+  /** المتبقي لا يُخزَّن: يُشتق دائماً من الإجمالي والعربون فلا يتعارضان. */
+  function remainingOf(r) {
+    const total = Number(r.total) || 0;
+    const paid = Number(r.deposit) || 0;
+    return Math.max(0, total - paid);
+  }
+
+  /** حالة السداد: بلا عربون · عربون واصل · مسدَّد بالكامل. */
+  function payStateOf(r) {
+    const paid = Number(r.deposit) || 0;
+    if (!paid) return { key: 'none', label: t('payNone') };
+    if (remainingOf(r) <= 0.009) return { key: 'full', label: t('payFull') };
+    return { key: 'partial', label: t('payPartial') };
+  }
+
   function discountOf(r) {
     const before = Number(r.price_before);
     const after = Number(r.total);
@@ -1084,6 +1102,14 @@
           ${fRow(t('fTotal'), 'total', 'number', r.total, ' min="0" step="0.01"')}
           ${fRow(t('fAddons'), 'addons_total', 'number', r.addons_total, ' min="0" step="0.01"')}
           ${fRow(t('fDesserts'), 'desserts_total', 'number', r.desserts_total, ' min="0" step="0.01"')}
+        </div>
+
+        <h5 class="fill-sec">${t('fSecPay')}</h5>
+        <div class="fill-grid">
+          ${fRow(t('fDeposit'), 'deposit', 'number', r.deposit, ' min="0" step="0.01"')}
+          ${fRow(t('fDepositDate'), 'deposit_date', 'date', r.deposit_date)}
+          <label><span>${t('fRemaining')}</span>
+            <input type="text" value="${esc(n2(remainingOf(r)))} ${t('sar')}" disabled></label>
         </div>
 
         <h5 class="fill-sec">${t('fSecOrder')}</h5>
@@ -1264,6 +1290,8 @@
       lng: number('lng'),
       total: number('total'),
       price_before: number('price_before'),
+      deposit: number('deposit'),
+      deposit_date: data.get('deposit_date'),
       addons_total: number('addons_total') ?? 0,
       desserts_total: number('desserts_total') ?? 0,
       status: text('status'),
@@ -1278,12 +1306,13 @@
     };
     const button = $('button[type="submit"]', form);
     button.disabled = true;
-    const ok = await patchOrder(id, fields);
+    const result = await patchOrder(id, fields);
     button.disabled = false;
 
-    if (!ok) {
+    if (!result.ok) {
       const note = $('.fill-msg', form);
-      note.textContent = t('failSave');
+      // خانتا العربون تُضافان بملف supabase-payments.sql؛ غيابهما يفشل الحفظ كله
+      note.textContent = /deposit/i.test(result.detail || '') ? t('payNeedsCols') : t('failSave');
       note.className = 'fill-msg bad';
       return;
     }
@@ -1386,6 +1415,66 @@
     }).join('');
   }
 
+  // ---------- تقرير المدفوعات ----------
+
+  /** طلبات التقرير: ضمن المدى الزمني، بلا الملغاة — فالملغي لا يُطالَب به. */
+  function payRows() {
+    return scoped
+      .filter((r) => r.status !== 'cancelled')
+      .slice()
+      .sort((a, b) => remainingOf(b) - remainingOf(a));
+  }
+
+  function renderPayments() {
+    const rows = payRows();
+    const total = rows.reduce((sum, r) => sum + (Number(r.total) || 0), 0);
+    const paid = rows.reduce((sum, r) => sum + (Number(r.deposit) || 0), 0);
+    const left = rows.reduce((sum, r) => sum + remainingOf(r), 0);
+    const unpaid = rows.filter((r) => !Number(r.deposit)).length;
+
+    $('#pay-kpis').innerHTML = [
+      kpi(t('kCollected'), n2(paid), t('sar'), t('sOfOrdersValue', { n: n2(total) }), true),
+      kpi(t('kOutstanding'), n2(left), t('sar'), t('sAcrossOrders', { n: n0(rows.length) })),
+      kpi(t('kUnpaid'), n0(unpaid), '', t('sNotYetPaid')),
+      kpi(t('kPayOrders'), n0(rows.length), '', ''),
+    ].join('');
+
+    $('#pay-body').innerHTML = !rows.length
+      ? `<tr><td colspan="8" class="empty">${t('payEmpty')}</td></tr>`
+      : rows.map((r) => {
+        const st = payStateOf(r);
+        return `<tr>
+          <td data-label="${t('thRef')}" class="tab">${esc(r.ref)}</td>
+          <td data-label="${t('thCustomer')}">${esc(r.customer_name || '—')}</td>
+          <td data-label="${t('fEventDate')}" class="tab">${dateOnly(r.event_date || r.setup_date)}</td>
+          <td data-label="${t('thTotal')}" class="num">${n2(r.total)}</td>
+          <td data-label="${t('thDeposit')}" class="num">${r.deposit ? n2(r.deposit) : '—'}</td>
+          <td data-label="${t('thDepositDate')}" class="tab">${dateOnly(r.deposit_date)}</td>
+          <td data-label="${t('thRemaining')}" class="num">${n2(remainingOf(r))}</td>
+          <td data-label="${t('thPayState')}"><span class="pay-pill pay-${st.key}">${st.label}</span></td>
+        </tr>`;
+      }).join('');
+  }
+
+  /** تقرير المدفوعات كملف إكسل مستقل. */
+  function exportPayments() {
+    const rows = payRows();
+    const money = '#,##0.00';
+    const cols = [
+      { h: t('thRef'),         t: 'txt',   w: 12, v: (r) => r.ref },
+      { h: t('thCustomer'),    t: 'txt',   w: 22, v: (r) => r.customer_name },
+      { h: t('fPhone'),        t: 'txt',   w: 14, v: (r) => r.phone },
+      { h: t('fEventDate'),    t: 'date',  w: 12, v: (r) => r.event_date || r.setup_date },
+      { h: t('status'),        t: 'txt',   w: 10, v: (r) => statusName(r.status) },
+      { h: t('thTotal'),       t: 'money', w: 14, v: (r) => r.total, z: money },
+      { h: t('thDeposit'),     t: 'money', w: 14, v: (r) => r.deposit, z: money },
+      { h: t('thDepositDate'), t: 'date',  w: 13, v: (r) => r.deposit_date },
+      { h: t('thRemaining'),   t: 'money', w: 14, v: (r) => remainingOf(r), z: money },
+      { h: t('thPayState'),    t: 'txt',   w: 14, v: (r) => payStateOf(r).label },
+    ];
+    writeSheet(rows, cols, `wekad-payments-${new Date().toISOString().slice(0, 10)}`, t('shPayments'));
+  }
+
   // ---------- تصدير إلى إكسل ----------
 
   /**
@@ -1425,6 +1514,10 @@
       { h: t('dBefore'),     t: 'money', w: 14, v: (r) => r.price_before, z: money },
       { h: t('thDiscPct'),   t: 'num',   w: 10, v: (r) => discountOf(r)?.pct ?? null },
       { h: t('thTotal'),     t: 'money', w: 14, v: (r) => r.total, z: money },
+      { h: t('thDeposit'),     t: 'money', w: 13, v: (r) => r.deposit, z: money },
+      { h: t('thDepositDate'), t: 'date',  w: 13, v: (r) => r.deposit_date },
+      { h: t('thRemaining'),   t: 'money', w: 13, v: (r) => remainingOf(r), z: money },
+      { h: t('thPayState'),    t: 'txt',   w: 14, v: (r) => payStateOf(r).label },
       { h: t('fItems'),      t: 'txt',   w: 40, v: (r) => itemsOf(r)
           .map((i) => `${itemName(i)} ×${i.qty}${i.unit ? ` ${unitName2(i.unit)}` : ''}`).join(' · ') },
       { h: t('fNotes'),      t: 'txt',   w: 30, v: (r) => r.notes },
@@ -1454,14 +1547,17 @@
   }
 
   function exportSheet() {
-    const XLSX = window.XLSX;
-    const rows = visibleRows();
-    const cols = exportColumns();
     const stamp = new Date().toISOString().slice(0, 10);
-    const file = `wekad-orders-${stamp}`;
+    writeSheet(visibleRows(), exportColumns(), `wekad-orders-${stamp}`, t('shOrders'));
+  }
 
-    // بلا المكتبة نرجع إلى CSV، لكن بفاصلة منقوطة: إكسل العربي يقرأ الفاصلة
-    // العادية حرفاً عادياً فيحشر الصف كله في عمود واحد
+  /**
+   * يكتب أي مجموعة صفوف وأعمدة كملف إكسل واحد.
+   * الأنواع هي ما يجعل الملف صالحاً للعمل عليه: الأرقام تُجمع، والتواريخ تُفرز،
+   * والجوال يبقى نصاً فلا يبتلع إكسل صفره البادئ.
+   */
+  function writeSheet(rows, cols, file, sheetName) {
+    const XLSX = window.XLSX;
     if (!XLSX) return exportCsvFallback(rows, cols, file);
 
     const aoa = [cols.map((c) => c.h)];
@@ -1496,7 +1592,7 @@
 
     const wb = XLSX.utils.book_new();
     wb.Workbook = { Views: [{ RTL: window.WekadI18n.lang === 'ar' }] };
-    XLSX.utils.book_append_sheet(wb, ws, t('shOrders'));
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
     XLSX.writeFile(wb, `${file}.xlsx`, { compression: true });
   }
 
@@ -1528,6 +1624,7 @@
     renderKpis();
     renderPanels();
     renderTable();
+    renderPayments();
   }
 
   /** جدول الموظف: المناسبات القادمة فقط، بما يلزم للتنفيذ. */
@@ -1713,6 +1810,7 @@
   // ---------- التنقّل بين الصفحات ----------
   const PAGE_KEYS = {
     overview: 'pOverview', orders: 'pOrders', analytics: 'pAnalytics',
+    payments: 'pPayments',
     checklist: 'pChecklist', closed: 'pClosed', users: 'pUsers',
   };
 
@@ -1727,6 +1825,7 @@
     const title = $('#page-title');
     if (title) title.textContent = t(PAGE_KEYS[name]);
     $('#side')?.classList.remove('open');
+    if (name === 'payments') renderPayments();
     if (name === 'users') renderStaff();
     if (name === 'closed') renderBlocked();
     if (name === 'checklist') renderItems();
@@ -1911,6 +2010,7 @@
     $$('.logout').forEach((b) => b.addEventListener('click', () => { clearSession(); role = null; showLogin(); }));
     $$('.refresh').forEach((b) => b.addEventListener('click', () => showDashboard()));
     $('#export').addEventListener('click', exportSheet);
+    $('#pay-export')?.addEventListener('click', exportPayments);
     $('#q').addEventListener('input', renderTable);
     $('#filter-status').addEventListener('change', renderTable);
 

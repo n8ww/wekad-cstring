@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="assets/css/dashboard.css?v=202610071702">
+<link rel="stylesheet" href="assets/css/dashboard.css?v=202610081235">
 </head>
 <body>
 
@@ -62,6 +62,7 @@
       <nav class="side-nav">
         <a href="#/overview"  class="nav-item" data-page="overview"><span class="ic">◧</span><span data-i18n="pOverview">نظرة عامة</span></a>
         <a href="#/orders"    class="nav-item" data-page="orders"><span class="ic">▤</span><span data-i18n="pOrders">الطلبات</span><span class="badge-n" id="nav-new"></span></a>
+        <a href="#/payments"  class="nav-item" data-page="payments"><span class="ic">◈</span><span data-i18n="pPayments">المدفوعات</span></a>
         <a href="#/analytics" class="nav-item" data-page="analytics"><span class="ic">◔</span><span data-i18n="pAnalytics">التحليلات</span></a>
         <a href="#/checklist" class="nav-item" data-page="checklist"><span class="ic">☑</span><span data-i18n="pChecklist">قائمة التجهيز</span></a>
         <a href="#/closed"    class="nav-item" data-page="closed"><span class="ic">⊘</span><span data-i18n="pClosed">الأيام المقفلة</span></a>
@@ -227,6 +228,35 @@
       </section>
 
       <!-- ===== التحليلات ===== -->
+      <!-- ===== المدفوعات ===== -->
+      <section class="page" data-page="payments">
+        <div class="kpis" id="pay-kpis"></div>
+        <section class="panel">
+          <div class="panel-head">
+            <h2 data-i18n="payTitle">عربون كل طلب والمتبقي عليه</h2>
+            <button class="btn btn-ghost btn-sm" id="pay-export" data-i18n="payExport">تصدير تقرير المدفوعات</button>
+          </div>
+          <p class="note" data-i18n="payHint">المتبقي يُحسب تلقائياً: الإجمالي ناقص العربون.</p>
+          <div class="table-wrap">
+            <table id="pay-table">
+              <thead>
+                <tr>
+                  <th data-i18n="thRef">رقم الطلب</th>
+                  <th data-i18n="thCustomer">العميل</th>
+                  <th data-i18n="fEventDate">تاريخ بدء العمل</th>
+                  <th data-i18n="thTotal">الإجمالي</th>
+                  <th data-i18n="thDeposit">العربون</th>
+                  <th data-i18n="thDepositDate">تاريخ العربون</th>
+                  <th data-i18n="thRemaining">المتبقي</th>
+                  <th data-i18n="thPayState">السداد</th>
+                </tr>
+              </thead>
+              <tbody id="pay-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
       <section class="page" data-page="analytics">
         <div class="panels">
           <section class="panel"><div class="panel-head"><h2 data-i18n="chSources">مصادر الزوار</h2></div><div class="bars" id="sources"></div></section>
@@ -417,9 +447,9 @@
 
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="assets/js/dash-i18n.js?v=202610071702"></script>
-<script src="assets/js/catalog.js?v=202610071702"></script>
-<script src="assets/js/config.js?v=202610071702"></script>
-<script src="assets/js/dashboard.js?v=202610071702"></script>
+<script src="assets/js/dash-i18n.js?v=202610081235"></script>
+<script src="assets/js/catalog.js?v=202610081235"></script>
+<script src="assets/js/config.js?v=202610081235"></script>
+<script src="assets/js/dashboard.js?v=202610081235"></script>
 </body>
 </html>

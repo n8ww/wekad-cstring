@@ -979,6 +979,26 @@ tr.row-soon td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
   text-transform: uppercase;
 }
 
+/* ---------- حالة السداد ---------- */
+.pay-pill {
+  display: inline-block;
+  padding: 0.16rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pay-full    { background: var(--brand-wash);        color: var(--brand-deep); }
+.pay-partial { background: rgba(226, 198, 142, 0.2); color: #8a6d2f; }
+.pay-none    { background: rgba(0, 0, 0, 0.06);      color: var(--ink-muted); }
+/* الخانة المحسوبة للعرض فقط */
+.fill-grid input:disabled {
+  background: var(--bg);
+  color: var(--ink-2);
+  font-weight: 600;
+  cursor: default;
+}
+
 /* ---------- دبوس الموقع ---------- */
 .pin {
   margin-block-start: 0.9rem;
@@ -1136,6 +1156,32 @@ tr.row-soon td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
 
 @media (max-width: 460px) {
   #orders-table tr.row-main { grid-template-columns: 1fr; }
+
+  /* جدول المدفوعات: نفس معالجة البطاقات، صفوفه بسيطة بلا row-main */
+  #pay-table { min-width: 0; display: block; }
+  #pay-table thead { display: none; }
+  #pay-table tbody { display: grid; gap: var(--sp-2); }
+  #pay-table tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.1rem 0.9rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: var(--sp-3);
+  }
+  #pay-table td { display: block; border: 0; padding: 0.45rem 0; min-width: 0; }
+  #pay-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--ink-muted);
+  }
+  #pay-table td:first-child, #pay-table td:last-child { grid-column: 1 / -1; }
+  #pay-table td:first-child { border-block-end: 1px solid var(--line); padding-block-end: 0.7rem; margin-block-end: 0.3rem; }
+
 }
 
 /* ==========================================================================
