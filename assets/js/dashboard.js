@@ -2546,7 +2546,7 @@
       e.target.reset();
       syncPackageOptions();
       drawerDirty = false;
-      await showDashboard({ quiet: true });  // يظهر في الجدول ويُقفل يومه
+      await showDashboard({ quiet: true });  // يظهر في الجدول
       const saved = allOrders.find((o) => o.ref === row.ref);
       if (saved) { closeDrawer(true); openOrder(saved.id, t('orderSaved', { ref: row.ref })); }
     });
