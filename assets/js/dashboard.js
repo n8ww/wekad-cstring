@@ -45,6 +45,9 @@
   let rangeDays = 0;    // 0 = كل الفترات
   let sortKey = 'created_at';
   let sortDir = -1;
+  let statusFilter = '';   // زر الحالة المختار في صفحة الطلبات
+  let drawerId = null;     // الطلب المفتوح في اللوحة الجانبية
+  let drawerDirty = false; // تعديلات لم تُحفظ بعد
 
   // ---------- تنسيق ----------
   const n0 = (v) => Math.round(Number(v) || 0).toLocaleString('en-US');
@@ -76,16 +79,53 @@
   }
 
   // ---------- الشبكة ----------
+  const send = (path, options) => fetch(`${cfg.SUPABASE_URL}${path}`, {
+    ...options,
+    headers: {
+      apikey: cfg.SUPABASE_KEY,
+      Authorization: `Bearer ${session?.access_token ?? cfg.SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+  });
+
+  /**
+   * رمز الدخول يعيش ساعة واحدة. نجدّده قبل انتهائه بدقيقتين، ومرة ثانية إن
+   * رفضه الخادم، حتى لا يُطرد الموظف من اللوحة وهو في الموقع.
+   */
   async function api(path, options = {}) {
-    return fetch(`${cfg.SUPABASE_URL}${path}`, {
-      ...options,
-      headers: {
-        apikey: cfg.SUPABASE_KEY,
-        Authorization: `Bearer ${session?.access_token ?? cfg.SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        ...(options.headers || {}),
-      },
-    });
+    if (session?.refresh_token && session.expires_at
+      && Date.now() / 1000 > session.expires_at - 120) {
+      await refreshSession();
+    }
+    let response = await send(path, options);
+    if (response.status === 401 && session?.refresh_token && (await refreshSession())) {
+      response = await send(path, options);
+    }
+    return response;
+  }
+
+  let refreshing = null;
+  /** يجدّد الجلسة مرة واحدة حتى لو طلبتها عدة نداءات في نفس اللحظة. */
+  function refreshSession() {
+    if (refreshing) return refreshing;
+    refreshing = (async () => {
+      try {
+        const r = await fetch(`${cfg.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+          method: 'POST',
+          headers: { apikey: cfg.SUPABASE_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: session.refresh_token }),
+        });
+        if (!r.ok) return false;
+        saveSession(await r.json());
+        return true;
+      } catch {
+        return false;
+      } finally {
+        refreshing = null;
+      }
+    })();
+    return refreshing;
   }
 
   // ---------- الجلسة ----------
@@ -335,18 +375,13 @@
   }
 
   /**
-   * يُدرج الطلب بنفس مسار الموقع (المفتاح العام) حتى يعمل مع سياسات
-   * قاعدة البيانات الحالية بلا صلاحيات جديدة، ويُطلق مشغّل إقفال اليوم.
+   * يُدرج الطلب بجلسة المدير: قاعدة البيانات تسمح للموقع العام بطلب «جديد»
+   * فقط، والحجز اليدوي يُسجَّل غالباً «مؤكّداً». مشغّل إقفال اليوم يعمل كذلك.
    */
   async function saveManualOrder(row) {
-    const response = await fetch(`${cfg.SUPABASE_URL}/rest/v1/orders`, {
+    const response = await api('/rest/v1/orders', {
       method: 'POST',
-      headers: {
-        apikey: cfg.SUPABASE_KEY,
-        Authorization: `Bearer ${cfg.SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        Prefer: 'return=minimal',
-      },
+      headers: { Prefer: 'return=minimal' },
       body: JSON.stringify(row),
     });
     if (response.ok) return { ok: true };
@@ -519,6 +554,20 @@
       body: JSON.stringify(fields),
     });
     return r.ok;
+  }
+
+  /** يبدّل ترتيب البند مع جاره (dir = -1 للأعلى، 1 للأسفل). */
+  async function moveItem(id, dir) {
+    const r = await api('/rest/v1/checklist_items?select=id,sort_order&order=sort_order.asc');
+    const rows = r.ok ? await r.json() : [];
+    const i = rows.findIndex((x) => String(x.id) === String(id));
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= rows.length) return false;
+    // ترتيب متساوٍ لا يتبدّل بالتبديل، فنعيد ترقيم الكل أولاً
+    rows.forEach((x, k) => { x.sort_order = (k + 1) * 10; });
+    [rows[i].sort_order, rows[j].sort_order] = [rows[j].sort_order, rows[i].sort_order];
+    const results = await Promise.all(rows.map((x) => updateItem(x.id, { sort_order: x.sort_order })));
+    return results.every(Boolean);
   }
 
   async function deleteItem(id) {
@@ -790,7 +839,7 @@
     const up = pct > 0;
     return `<span class="delta ${up ? 'delta-up' : 'delta-down'}">
       ${up ? '▲' : '▼'} <span class="num">${Math.abs(pct)}%</span></span>
-      <span>عن الفترة السابقة</span>`;
+      <span>${t('sVsPrev')}</span>`;
   }
 
   function kpi(label, value, unit, sub, hero) {
@@ -967,12 +1016,17 @@
   // ---------- الجدول ----------
   function visibleRows() {
     const q = $('#q').value.trim().toLowerCase();
-    const status = $('#filter-status').value;
     const city = $('#filter-city')?.value || '';
+    const when = $('#filter-when')?.value || '';
+    const today = todayIso();
 
     const rows = scoped.filter((r) => {
-      if (status && r.status !== status) return false;
+      if (statusFilter === 'missing') {
+        if (!needsCheck(r) || !missingOf(r).length) return false;
+      } else if (statusFilter && r.status !== statusFilter) return false;
       if (city && r.city !== city) return false;
+      if (when === 'upcoming' && !(eventDay(r) && eventDay(r) >= today)) return false;
+      if (when === 'past' && !(eventDay(r) && eventDay(r) < today)) return false;
       if (!q) return true;
       return [r.ref, r.customer_name, r.phone, r.company, r.city, r.district, r.venue]
         .some((v) => String(v ?? '').toLowerCase().includes(q));
@@ -1056,7 +1110,7 @@
       && r.lat !== null && r.lng !== null;
 
     return `
-      <form class="fill" data-fill="${r.id}">
+      <div class="fill-fields">
         <h4>${t('fillTitle')}</h4>
         <p class="fill-hint">${t('fillHint')}</p>
 
@@ -1129,12 +1183,7 @@
           ${items.map((it) => itemRow(it)).join('')}
         </div>
         <button type="button" class="btn btn-ghost btn-sm" data-item-add>${t('fItemAdd')}</button>
-
-        <div class="fill-actions">
-          <button type="submit" class="btn btn-solid btn-sm">${t('fSaveDetails')}</button>
-          <span class="fill-msg"></span>
-        </div>
-      </form>`;
+      </div>`;
   }
 
   // ---------- دبوس الموقع ----------
@@ -1319,26 +1368,200 @@
 
     const row = allOrders.find((o) => String(o.id) === String(id));
     if (row) Object.assign(row, fields, { items });
-    applyRange();                       // الصف الرئيسي يعرض الموعد الجديد فوراً
+    applyRange();                       // الجدول والرئيسية يعرضان الجديد فوراً
+    // نعيد رسم اللوحة لتتحدّث الحالة والناقص في رأسها، ونبقي موضع التمرير
+    const panel = $('#order-drawer .drawer-panel');
+    const top = panel ? panel.scrollTop : 0;
+    openOrder(id, t('saved'));
+    if (panel) panel.scrollTop = top;
+  }
 
-    // إعادة الرسم تستبدل النموذج، فنعيد فتح التفاصيل ونضع الرسالة في النسخة الجديدة
-    const detail = $(`tr[data-detail="${id}"]`);
-    if (detail) {
-      detail.hidden = false;
-      // إعادة الرسم أتلفت الخريطة القديمة، فنبنيها على العقدة الجديدة
-      const box = $('[data-pin]', detail);
-      if (box) initPinMap(box);
+  // ---------- مساعدات العرض ----------
+  const todayIso = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  /** يوم التنفيذ: التركيب إن وُجد، وإلا يوم المناسبة. */
+  const eventDay = (r) => dateOnly(r.setup_date || r.event_date).replace('—', '');
+  const isOpenOrder = (r) => ['new', 'contacted', 'confirmed'].includes(r.status);
+  /** الطلب الجديد ناقص بطبيعته حتى نتصل؛ النقص يُحسب بعد التواصل فقط. */
+  const needsCheck = (r) => ['contacted', 'confirmed'].includes(r.status);
+  const hasPin = (r) => r.lat !== null && r.lat !== undefined && r.lat !== ''
+    && r.lng !== null && r.lng !== undefined && r.lng !== '';
+  const mapsUrl = (r) => (hasPin(r) ? `https://maps.google.com/?q=${r.lat},${r.lng}` : '');
+
+  /** رابط واتساب بصيغة دولية: 05xxxxxxxx ← 9665xxxxxxxx */
+  function waUrl(phone) {
+    const d = String(phone || '').replace(/\D/g, '');
+    if (!d) return '';
+    const intl = d.startsWith('966') ? d : d.startsWith('0') ? `966${d.slice(1)}` : d.startsWith('5') ? `966${d}` : d;
+    return `https://wa.me/${intl}`;
+  }
+
+  /** ما ينقص الطلب قبل يوم التنفيذ. يُحسب للطلبات المفتوحة فقط. */
+  function missingOf(r) {
+    const out = [];
+    if (!r.setup_time) out.push('missTime');
+    if (!hasPin(r)) out.push('missPin');
+    if (!r.city || r.city === 'أخرى') out.push('missCity');
+    if (!Number(r.total)) out.push('missPrice');
+    return out;
+  }
+
+  const missingChips = (r) => {
+    const m = missingOf(r);
+    return m.length
+      ? `<span class="miss"><span class="miss-lbl">${t('missingLbl')}</span>${m.map((k) => `<span class="miss-chip">${t(k)}</span>`).join('')}</span>`
+      : '';
+  };
+
+  /** «اليوم» · «غداً» · «بعد ٣ أيام» · «قبل ٥ أيام» */
+  function relDay(iso) {
+    if (!iso) return '';
+    const days = Math.round((startOfDay(`${iso}T12:00:00`) - startOfDay(new Date())) / 86400000);
+    if (days === 0) return t('today');
+    if (days === 1) return t('tomorrow');
+    if (days === 2) return t('inTwoDays');
+    if (days > 2) return days <= 10 ? t('inDaysFew', { n: days }) : t('inDaysMany', { n: days });
+    if (days === -1) return t('yesterday');
+    return t('daysAgo', { n: -days });
+  }
+
+  const urgencyOf = (iso) => {
+    const days = Math.round((startOfDay(`${iso}T12:00:00`) - startOfDay(new Date())) / 86400000);
+    return days < 0 ? 'past' : days === 0 ? 'today' : days === 1 ? 'tomorrow' : days <= 3 ? 'soon' : 'later';
+  };
+
+  const statusPill = (status) => {
+    const c = STATUS_COLOR[status] || STATUS_COLOR.new;
+    return `<span class="pill" style="background:color-mix(in srgb, ${c} 14%, transparent);color:${c}"><i style="background:${c}"></i>${statusName(status)}</span>`;
+  };
+
+  // ---------- الرئيسية ----------
+  /** صف مختصر لطلب، يُفتح بالضغط عليه. */
+  function miniRow(r, extra = '', below = '') {
+    const day = eventDay(r);
+    return `
+      <button type="button" class="mini" data-open="${r.id}">
+        <span class="mini-main">
+          <b>${esc(r.customer_name || '—')}</b>
+          <span class="muted">${esc(r.ref)} · ${esc(packageLabel(r))}</span>
+          ${below}
+        </span>
+        <span class="mini-side">
+          ${day ? `<span class="mini-day u-${urgencyOf(day)}">${relDay(day)}</span>` : ''}
+          ${extra}
+        </span>
+      </button>`;
+  }
+
+  function attnCard(title, hint, rows, filter, extra, below) {
+    const shown = rows.slice(0, 5);
+    return `
+      <section class="attn-card${rows.length ? '' : ' is-clear'}">
+        <header>
+          <span class="attn-n num">${rows.length}</span>
+          <span class="attn-t">${title}<small>${hint}</small></span>
+        </header>
+        ${rows.length
+          ? `<div class="mini-list">${shown.map((r) => miniRow(r, extra ? extra(r) : '', below ? below(r) : '')).join('')}</div>
+             ${rows.length > shown.length || filter ? `<a class="attn-more" href="#/orders" data-filter="${filter}">${t('seeAll', { n: rows.length })}</a>` : ''}`
+          : `<p class="attn-ok">${t('attnNone')}</p>`}
+      </section>`;
+  }
+
+  function renderHome() {
+    const today = todayIso();
+    const in14 = new Date(); in14.setDate(in14.getDate() + 14);
+    const lim14 = `${in14.getFullYear()}-${String(in14.getMonth() + 1).padStart(2, '0')}-${String(in14.getDate()).padStart(2, '0')}`;
+    const byDayAsc = (a, b) => (eventDay(a) + (a.setup_time || '')).localeCompare(eventDay(b) + (b.setup_time || ''));
+
+    // ما يحتاج متابعة لا يتبع المدى الزمني: طلب قديم بلا اتصال يبقى مهماً
+    const fresh = allOrders.filter((r) => r.status === 'new')
+      .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+    const soon = allOrders.filter((r) => isOpenOrder(r) && eventDay(r) >= today && eventDay(r) <= lim14);
+    const missing = soon.filter((r) => needsCheck(r) && missingOf(r).length).sort(byDayAsc);
+    const unpaid = soon.filter((r) => r.status === 'confirmed' && !Number(r.deposit)).sort(byDayAsc);
+
+    const line = $('#today-line');
+    if (line) {
+      line.innerHTML = `${esc(dayLabel(new Date()))}`;
     }
-    const toggle = $(`[data-toggle="${id}"]`);
-    if (toggle) toggle.textContent = t('hide');
-    const note = $(`form[data-fill="${id}"] .fill-msg`);
-    if (note) { note.textContent = t('saved'); note.className = 'fill-msg ok'; }
+
+    $('#attn').innerHTML = [
+      attnCard(t('attnNew'), t('attnNewHint'), fresh, 'new',
+        (r) => `<span class="muted">${t('arrived', { when: dateTime(r.created_at) })}</span>`),
+      attnCard(t('attnMissing'), t('attnMissingHint'), missing, 'missing', null, (r) => missingChips(r)),
+      attnCard(t('attnDeposit'), t('attnDepositHint'), unpaid, '',
+        (r) => `<span class="num muted">${n0(r.total)} ${t('sar')}</span>`),
+    ].join('');
+
+    // المناسبات القادمة مجمّعة حسب اليوم
+    const upcoming = allOrders
+      .filter((r) => r.status !== 'cancelled' && eventDay(r) >= today && eventDay(r) <= lim14)
+      .sort(byDayAsc);
+    const groups = new Map();
+    upcoming.forEach((r) => {
+      const k = eventDay(r);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(r);
+    });
+    $('#upcoming').innerHTML = !upcoming.length
+      ? `<p class="empty">${t('noUpcoming14')}</p>`
+      : [...groups.entries()].map(([day, rows]) => `
+        <div class="up-day u-${urgencyOf(day)}">
+          <div class="up-date">
+            <b>${relDay(day)}</b>
+            <span>${esc(dayLabel(`${day}T12:00:00`))}</span>
+          </div>
+          <div class="up-rows">
+            ${rows.map((r) => `
+              <button type="button" class="up-row" data-open="${r.id}">
+                <span class="up-time tab">${r.setup_time ? esc(r.setup_time) : '—'}</span>
+                <span class="up-who"><b>${esc(r.customer_name || '—')}</b>
+                  <span class="muted">${esc(packageLabel(r))} · ${esc(cityName(r.city) || '—')}${r.district ? ` — ${esc(r.district)}` : ''}</span></span>
+                <span class="up-state">${statusPill(r.status)}${needsCheck(r) ? missingChips(r) : ''}</span>
+              </button>`).join('')}
+          </div>
+        </div>`).join('');
+
+    // أربعة أرقام فقط في الواجهة؛ الباقي في «كل الأرقام»
+    const s = summarise(scoped);
+    const open = allOrders.filter((r) => r.status !== 'cancelled' && eventDay(r) >= today);
+    const left = open.reduce((sum, r) => sum + remainingOf(r), 0);
+    const week = new Date(); week.setDate(week.getDate() + 7);
+    const lim7 = `${week.getFullYear()}-${String(week.getMonth() + 1).padStart(2, '0')}-${String(week.getDate()).padStart(2, '0')}`;
+    const thisWeek = upcoming.filter((r) => eventDay(r) <= lim7).length;
+
+    $('#kpis-main').innerHTML = [
+      kpi(t('kRevenue'), n0(s.revenue), t('sar'), t('sFromConfirmed', { n: n0(s.wonCount) }), true),
+      kpi(t('kWeekEvents'), n0(thisWeek), '', t('sNext7')),
+      kpi(t('kNewOrders'), n0(fresh.length), '', t('sWaitingCall')),
+      kpi(t('kToCollect'), n0(left), t('sar'), t('sUpcomingLeft')),
+    ].join('');
+  }
+
+  // ---------- أزرار الحالات ----------
+  function renderChips() {
+    const el = $('#status-chips');
+    if (!el) return;
+    const count = (k) => scoped.filter((r) => r.status === k).length;
+    const missingN = scoped.filter((r) => needsCheck(r) && missingOf(r).length).length;
+    const chips = [
+      ['', t('all'), scoped.length],
+      ...Object.keys(STATUS_KEYS).map((k) => [k, statusName(k), count(k)]),
+      ['missing', t('needsInfo'), missingN],
+    ];
+    el.innerHTML = chips.map(([k, label, n]) => `
+      <button type="button" class="chip${statusFilter === k ? ' on' : ''}${k === 'missing' ? ' chip-warn' : ''}" data-chip="${k}">
+        ${esc(label)} <span class="num">${n}</span></button>`).join('');
   }
 
   function renderTable() {
+    renderChips();
     const rows = visibleRows();
     $('#count').textContent = t('ofTotal', { a: rows.length, b: scoped.length });
-    const newCount = scoped.filter((r) => r.status === 'new').length;
+    const newCount = allOrders.filter((r) => r.status === 'new').length;
     const badge = $('#nav-new');
     if (badge) { badge.textContent = newCount || ''; badge.hidden = !newCount; }
 
@@ -1349,70 +1572,128 @@
     });
 
     if (!rows.length) {
-      $('#table-body').innerHTML = `<tr><td colspan="8"><p class="empty">${t('noResults')}</p></td></tr>`;
+      $('#table-body').innerHTML = `<tr><td colspan="7"><p class="empty">${t('noResults')}</p></td></tr>`;
       return;
     }
 
     $('#table-body').innerHTML = rows.map((r) => {
-      const stColor = STATUS_COLOR[r.status] || STATUS_COLOR.new;
-      const stName = statusName(r.status);
-      const maps = r.lat && r.lng ? `https://maps.google.com/?q=${r.lat},${r.lng}` : '';
-      const items = itemsOf(r);
+      const day = eventDay(r);
+      const maps = mapsUrl(r);
+      const pay = payStateOf(r);
       return `
-      <tr class="row-main">
+      <tr class="row-main${r.status === 'cancelled' ? ' is-cancelled' : ''}" data-open="${r.id}" tabindex="0">
         <td data-label="${t('thRef')}"><span class="ref">${esc(r.ref)}</span><div class="muted">${dateTime(r.created_at)}</div></td>
-        <td data-label="${t('thCustomer')}">${esc(r.customer_name || '—')}
+        <td data-label="${t('thCustomer')}"><b>${esc(r.customer_name || '—')}</b>
+            <div class="muted"><span dir="ltr">${esc(r.phone || '')}</span></div>
             <div class="muted">${r.client_type === 'company' ? esc(r.company || t('company')) : t('individual')}</div></td>
-        <td data-label="${t('thPhone')}"><a href="tel:${esc(r.phone)}" dir="ltr">${esc(r.phone || '—')}</a></td>
+        <td data-label="${t('thEvent')}">${day
+          ? `<b class="tab">${esc(day)}</b><div class="mini-day u-${urgencyOf(day)}">${relDay(day)}</div>
+             <div class="muted tab">${r.setup_time ? `${t('setupAt')} ${esc(r.setup_time)}` : ''}</div>`
+          : '—'}</td>
         <td data-label="${t('thPackage')}">${esc(packageLabel(r))}<div class="muted">${esc(r.days)} ${unitName2('يوم')}</div></td>
-        <td class="tab" data-label="${t('thSetupWork')}"><b>${dateOnly(r.setup_date || r.event_date)}</b> · ${esc(r.setup_time || '—')}
-            <div class="muted">${t('work')} ${dateOnly(r.event_date)} · ${esc(r.event_time || '')}</div></td>
         <td data-label="${t('thLocation')}">${esc(cityName(r.city) || '—')}<div class="muted">${esc(r.district || '')}${maps ? ` · <a href="${maps}" target="_blank" rel="noopener">${t('openMap')}</a>` : ''}</div></td>
         <td class="tab" data-label="${t('thTotal')}"><b>${n2(r.total)}</b>${discountPill(r)}
-            ${discountOf(r) ? `<div class="muted was">${n2(r.price_before)}</div>` : ''}</td>
+            <div><span class="pay-pill pay-${pay.key}">${pay.label}</span></div></td>
         <td data-label="${t('thStatus')}">
-          <span class="pill" style="background:color-mix(in srgb, ${stColor} 14%, transparent);color:${stColor}">
-            <i style="background:${stColor}"></i>${stName}</span>
-          <div style="margin-block-start:.4rem;display:flex;gap:.4rem;align-items:center">
-            <select class="status-select" data-id="${r.id}">
-              ${Object.entries(STATUS_KEYS).map(([k]) =>
+          <div class="st-cell">
+            <select class="status-select" data-id="${r.id}" aria-label="${t('status')}">
+              ${Object.keys(STATUS_KEYS).map((k) =>
                 `<option value="${k}" ${r.status === k ? 'selected' : ''}>${statusName(k)}</option>`).join('')}
             </select>
-            <button class="detail-toggle" data-toggle="${r.id}">${t('details')}</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-open="${r.id}">${t('open')}</button>
           </div>
-        </td>
-      </tr>
-      <tr class="row-detail" data-detail="${r.id}" hidden>
-        <td colspan="8">
-          <dl class="detail-grid">
-            <div><dt>${t('dSetup')}</dt><dd class="tab">${dateOnly(r.setup_date)} · ${esc(r.setup_time || '—')}</dd></div>
-            <div><dt>${t('dWork')}</dt><dd class="tab">${dateOnly(r.event_date)} · ${esc(r.event_time || '—')}</dd></div>
-            <div><dt>${t('dVenue')}</dt><dd>${esc(r.venue || '—')}</dd></div>
-            <div><dt>${t('dDistrict')}</dt><dd>${esc(r.district || '—')}</dd></div>
-            <div><dt>${t('dBaristas')}</dt><dd class="num">${esc(r.included_baristas)}</dd></div>
-            ${discountOf(r) ? `
-              <div><dt>${t('dBefore')}</dt><dd class="num">${n2(r.price_before)} ${t('sar')}</dd></div>
-              <div><dt>${t('discount')}</dt><dd class="num">${discountOf(r).pct}%</dd></div>
-              <div><dt>${t('dSaved')}</dt><dd class="num">${n2(discountOf(r).saved)} ${t('sar')}</dd></div>` : ''}
-            <div><dt>${t('dAddons')}</dt><dd class="num">${n2(r.addons_total)} ${t('sar')}</dd></div>
-            <div><dt>${t('dSweets')}</dt><dd class="num">${n2(r.desserts_total)} ${t('sar')}</dd></div>
-            ${r.vat ? `<div><dt>${t('dVat')}</dt><dd class="num">${esc(r.vat)}</dd></div>` : ''}
-            ${r.custom_request ? `<div style="grid-column:1/-1"><dt>${t('customReq')}</dt><dd>${esc(r.custom_request)}</dd></div>` : ''}
-            ${r.notes ? `<div style="grid-column:1/-1"><dt>${t('dNotes')}</dt><dd>${esc(r.notes)}</dd></div>` : ''}
-          </dl>
-          ${items.length ? `<ul class="items-list">${items.map((i) => `
-            <li><span>${esc(itemName(i))} — <span class="num">${esc(i.qty)}</span> ${esc(unitName2(i.unit))}${i.total_pieces ? ` · ${n0(i.total_pieces)} ${unitName2('حبة')}` : ''}</span>
-                <span class="num">${n2(i.total)} ${t('sar')}</span></li>`).join('')}</ul>` : ''}
-          ${fillForm(r)}
-          <div class="row-actions">
-            ${r.status !== 'cancelled'
-              ? `<button class="btn btn-danger btn-sm" data-cancel="${r.id}" data-ref="${esc(r.ref)}">${t('cancelOrder')}</button>`
-              : ''}
-            <button class="btn btn-ghost btn-sm" data-delete="${r.id}" data-ref="${esc(r.ref)}">${t('deleteOrder')}</button>
-          </div>
+          ${needsCheck(r) ? missingChips(r) : ''}
         </td>
       </tr>`;
     }).join('');
+  }
+
+  // ---------- لوحة الطلب الجانبية ----------
+  function drawerHtml(r) {
+    const items = itemsOf(r);
+    const maps = mapsUrl(r);
+    const wa = waUrl(r.phone);
+    const day = eventDay(r);
+    const d = discountOf(r);
+    return `
+      <form class="fill" data-fill="${r.id}">
+        <header class="drawer-head">
+          <div class="dh-top">
+            <div>
+              <span class="ref">${esc(r.ref)}</span>
+              <h2 id="drawer-title">${esc(r.customer_name || '—')}</h2>
+              <div class="dh-meta">${statusPill(r.status)}
+                ${day ? `<span class="mini-day u-${urgencyOf(day)}">${relDay(day)} · <span class="tab">${esc(day)}</span></span>` : ''}
+                <span class="muted">${t('arrived', { when: dateTime(r.created_at) })}</span></div>
+            </div>
+            <button type="button" class="icon-btn" data-drawer-close aria-label="${t('close')}">✕</button>
+          </div>
+          <div class="dh-actions">
+            ${r.phone ? `<a class="btn btn-ghost btn-sm" href="tel:${esc(r.phone)}">${t('call')}</a>` : ''}
+            ${wa ? `<a class="btn btn-ghost btn-sm" href="${wa}" target="_blank" rel="noopener">${t('whatsapp')}</a>` : ''}
+            ${maps ? `<a class="btn btn-ghost btn-sm" href="${maps}" target="_blank" rel="noopener">${t('openMap')}</a>` : ''}
+          </div>
+          ${needsCheck(r) ? missingChips(r) : ''}
+        </header>
+
+        <div class="drawer-body">
+          <section class="d-sum">
+            <div><dt>${t('thPackage')}</dt><dd>${esc(packageLabel(r))} · ${esc(r.days)} ${unitName2('يوم')}</dd></div>
+            <div><dt>${t('thTotal')}</dt><dd class="num">${n2(r.total)} ${t('sar')}${d ? ` <span class="disc">−${d.pct}%</span>` : ''}</dd></div>
+            <div><dt>${t('thDeposit')}</dt><dd class="num">${r.deposit ? `${n2(r.deposit)} ${t('sar')}` : '—'}</dd></div>
+            <div><dt>${t('thRemaining')}</dt><dd class="num">${n2(remainingOf(r))} ${t('sar')}</dd></div>
+          </section>
+          ${items.length ? `<ul class="items-list">${items.map((i) => `
+            <li><span>${esc(itemName(i))} — <span class="num">${esc(i.qty)}</span> ${esc(unitName2(i.unit))}${i.total_pieces ? ` · ${n0(i.total_pieces)} ${unitName2('حبة')}` : ''}</span>
+                <span class="num">${n2(i.total)} ${t('sar')}</span></li>`).join('')}</ul>` : ''}
+          ${r.custom_request ? `<div class="job-note job-note--custom"><b>${t('customReq')}</b> ${esc(r.custom_request)}</div>` : ''}
+          ${fillForm(r)}
+          <div class="danger-zone">
+            ${r.status !== 'cancelled'
+              ? `<button type="button" class="btn btn-danger btn-sm" data-cancel="${r.id}" data-ref="${esc(r.ref)}">${t('cancelOrder')}</button>`
+              : ''}
+            <button type="button" class="btn btn-ghost btn-sm" data-delete="${r.id}" data-ref="${esc(r.ref)}">${t('deleteOrder')}</button>
+          </div>
+        </div>
+
+        <footer class="drawer-foot">
+          <button type="submit" class="btn btn-solid">${t('fSaveDetails')}</button>
+          <span class="fill-msg"></span>
+        </footer>
+      </form>`;
+  }
+
+  function openOrder(id, message) {
+    const r = allOrders.find((o) => String(o.id) === String(id));
+    if (!r) return;
+    drawerId = r.id;
+    drawerDirty = false;
+    const inner = $('#drawer-inner');
+    inner.innerHTML = drawerHtml(r);
+    const drawer = $('#order-drawer');
+    const wasHidden = drawer.hidden;
+    drawer.hidden = false;
+    document.body.classList.add('drawer-open');
+    const box = $('[data-pin]', inner);
+    if (box) initPinMap(box);
+    if (wasHidden) $('.drawer-panel', drawer).scrollTop = 0;
+    if (message) {
+      const note = $('.fill-msg', inner);
+      note.textContent = message;
+      note.className = 'fill-msg ok';
+    }
+  }
+
+  /** يغلق أي لوحة جانبية؛ يسأل قبل أن تضيع تعديلات لم تُحفظ. */
+  function closeDrawer(force = false) {
+    const open = $$('.drawer').filter((d) => !d.hidden);
+    if (!open.length) return true;
+    if (!force && drawerDirty && !confirm(t('unsaved'))) return false;
+    open.forEach((d) => { d.hidden = true; });
+    document.body.classList.remove('drawer-open');
+    drawerId = null;
+    drawerDirty = false;
+    return true;
   }
 
   // ---------- تقرير المدفوعات ----------
@@ -1443,7 +1724,7 @@
       ? `<tr><td colspan="8" class="empty">${t('payEmpty')}</td></tr>`
       : rows.map((r) => {
         const st = payStateOf(r);
-        return `<tr>
+        return `<tr class="row-main" data-open="${r.id}" tabindex="0">
           <td data-label="${t('thRef')}" class="tab">${esc(r.ref)}</td>
           <td data-label="${t('thCustomer')}">${esc(r.customer_name || '—')}</td>
           <td data-label="${t('fEventDate')}" class="tab">${dateOnly(r.event_date || r.setup_date)}</td>
@@ -1622,6 +1903,7 @@
       scopedVisits = allVisits.filter((v) => new Date(v.created_at) >= from);
     }
     renderKpis();
+    renderHome();
     renderPanels();
     renderTable();
     renderPayments();
@@ -1825,6 +2107,9 @@
     const title = $('#page-title');
     if (title) title.textContent = t(PAGE_KEYS[name]);
     $('#side')?.classList.remove('open');
+    // المدى الزمني لا معنى له في صفحات الإعدادات، فلا نعرضه هناك
+    const range = $('#range-wrap');
+    if (range) range.hidden = ['checklist', 'closed', 'users'].includes(name);
     if (name === 'payments') renderPayments();
     if (name === 'users') renderStaff();
     if (name === 'closed') renderBlocked();
@@ -1869,7 +2154,7 @@
    * أحد الصفوف مفتوحاً أو المؤشر داخل خانة.
    */
   function editingNow() {
-    if ($$('tr.row-detail').some((row) => !row.hidden)) return true;
+    if ($$('.drawer').some((d) => !d.hidden)) return true;
     const el = document.activeElement;
     return Boolean(el && el.matches('input, textarea, select'));
   }
@@ -1936,7 +2221,7 @@
       startAutoRefresh();
     } catch (error) {
       console.error(error);
-      $('#table-body').innerHTML = `<tr><td colspan="8"><p class="empty">${t('loadFail')}</p></td></tr>`;
+      $('#table-body').innerHTML = `<tr><td colspan="7"><p class="empty">${t('loadFail')}</p></td></tr>`;
     } finally {
       $$('.refresh').forEach((b) => { b.textContent = t('refresh'); });
     }
@@ -2012,7 +2297,13 @@
     $('#export').addEventListener('click', exportSheet);
     $('#pay-export')?.addEventListener('click', exportPayments);
     $('#q').addEventListener('input', renderTable);
-    $('#filter-status').addEventListener('change', renderTable);
+    $('#filter-when')?.addEventListener('change', renderTable);
+    $('#status-chips')?.addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-chip]');
+      if (!chip) return;
+      statusFilter = chip.dataset.chip;
+      renderTable();
+    });
 
     // مبدّل اللغة: كل النسخ متزامنة، والاختيار يُحفظ في الحساب
     $$('.lang-pick').forEach((sel) => {
@@ -2028,8 +2319,9 @@
     // إعادة رسم كل شيء عند تبدّل اللغة
     document.addEventListener('wekad:lang', () => {
       if ($('#dash') && !$('#dash').hidden) {
-        renderKpis(); renderPanels(); renderTable();
-        fillCityFilter();                 // أسماء المدن و"الكل" تتبع اللغة
+        renderKpis(); renderHome(); renderPanels(); renderTable(); renderPayments();
+        fillCityFilter();
+        if (drawerId) openOrder(drawerId);                 // أسماء المدن و"الكل" تتبع اللغة
         fillOrderForm();
         if (currentPage() === 'users') renderStaff();
         if (currentPage() === 'closed') renderBlocked();
@@ -2039,7 +2331,7 @@
       stampSync();
     });
 
-    window.addEventListener('hashchange', () => showPage(currentPage()));
+    window.addEventListener('hashchange', () => { closeDrawer(); showPage(currentPage()); });
     $('#side-toggle')?.addEventListener('click', () => $('#side').classList.toggle('open'));
     $('#filter-city')?.addEventListener('change', renderTable);
 
@@ -2065,6 +2357,7 @@
         if (row) row.status = value;
       });
       renderKpis();
+      renderHome();
       renderPanels();
       renderTable();
     });
@@ -2252,7 +2545,18 @@
       msg.className = 'fill-msg ok';
       e.target.reset();
       syncPackageOptions();
-      showDashboard({ quiet: true });        // يظهر في الجدول ويُقفل يومه
+      drawerDirty = false;
+      await showDashboard({ quiet: true });  // يظهر في الجدول ويُقفل يومه
+      const saved = allOrders.find((o) => o.ref === row.ref);
+      if (saved) { closeDrawer(true); openOrder(saved.id, t('orderSaved', { ref: row.ref })); }
+    });
+
+    $('#new-order-btn')?.addEventListener('click', () => {
+      if (!closeDrawer()) return;
+      $('#o-msg').textContent = '';
+      $('#new-drawer').hidden = false;
+      document.body.classList.add('drawer-open');
+      setTimeout(() => $('#o-name')?.focus(), 30);
     });
 
     $('#staff-list').addEventListener('click', async (e) => {
@@ -2263,8 +2567,8 @@
       renderStaff();
     });
 
-    // إلغاء أو حذف طلب
-    $('#table-body').addEventListener('click', async (e) => {
+    // إلغاء أو حذف طلب — من داخل اللوحة الجانبية
+    $('#order-drawer').addEventListener('click', async (e) => {
       const cancelId = e.target.dataset?.cancel;
       const deleteId = e.target.dataset?.delete;
       const ref = e.target.dataset?.ref;
@@ -2272,11 +2576,10 @@
       if (cancelId) {
         if (!confirm(t('confirmCancel', { ref }))) return;
         if (!(await updateStatus(cancelId, 'cancelled'))) { alert(t('failCancel')); return; }
-        [allOrders, scoped].forEach((list) => {
-          const row = list.find((r) => String(r.id) === String(cancelId));
-          if (row) row.status = 'cancelled';
-        });
-        renderKpis(); renderPanels(); renderTable();
+        const row = allOrders.find((r) => String(r.id) === String(cancelId));
+        if (row) row.status = 'cancelled';
+        applyRange();
+        openOrder(cancelId, t('cancelledMsg'));
         return;
       }
 
@@ -2285,6 +2588,7 @@
         const response = await api(`/rest/v1/orders?id=eq.${deleteId}`, { method: 'DELETE' });
         if (!response.ok) { alert(t('failDelete')); return; }
         allOrders = allOrders.filter((r) => String(r.id) !== String(deleteId));
+        closeDrawer(true);
         applyRange();
       }
     });
@@ -2396,31 +2700,50 @@
       renderItems();
     });
 
-    $('#table-body').addEventListener('submit', (e) => {
+    const drawerEl = $('#order-drawer');
+    drawerEl.addEventListener('submit', (e) => {
       if (!e.target.matches('form.fill')) return;
       e.preventDefault();
       submitFill(e.target);
     });
 
-    $('#table-body').addEventListener('click', (e) => {
+    drawerEl.addEventListener('click', (e) => {
       // أزرار الدبوس ومحرّر الأصناف داخل التفاصيل
-      if (e.target.closest('[data-pin]')) { pinClick(e); return; }
-      if (e.target.matches('[data-item-del]')) { e.target.closest('.item-row').remove(); return; }
+      if (e.target.closest('[data-pin]')) { pinClick(e); drawerDirty = true; return; }
+      if (e.target.matches('[data-item-del]')) { e.target.closest('.item-row').remove(); drawerDirty = true; return; }
       if (e.target.matches('[data-item-add]')) {
         $('[data-items]', e.target.closest('form.fill')).insertAdjacentHTML('beforeend', itemRow());
+        drawerDirty = true;
+      }
+    });
+
+    // أي تعديل داخل لوحة جانبية يُعلَّم، فلا تُغلق بلا تنبيه
+    $$('.drawer').forEach((d) => d.addEventListener('input', () => { drawerDirty = true; }));
+
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('[data-drawer-close]')) { closeDrawer(); return; }
+
+      // أي عنصر يحمل data-open يفتح الطلب — إلا الروابط والقوائم داخله
+      const opener = e.target.closest('[data-open]');
+      if (opener && !e.target.closest('a, select, input')) {
+        if (!closeDrawer()) return;
+        openOrder(opener.dataset.open);
         return;
       }
 
-      const id = e.target.dataset?.toggle;
-      if (!id) return;
-      const row = $(`tr[data-detail="${id}"]`);
-      row.hidden = !row.hidden;
-      e.target.textContent = row.hidden ? t('details') : t('hide');
-      // الخريطة تُبنى بعد الظهور، وإلا قاست ارتفاعاً صفراً
-      if (!row.hidden) {
-        const box = $('[data-pin]', row);
-        if (box) initPinMap(box);
+      // «عرض الكل» في الرئيسية يفتح الطلبات بالتصفية المناسبة
+      const more = e.target.closest('[data-filter]');
+      if (more) {
+        statusFilter = more.dataset.filter;
+        const when = $('#filter-when');
+        if (when) when.value = more.dataset.filter === 'missing' ? 'upcoming' : '';
+        renderTable();
       }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { closeDrawer(); return; }
+      if (e.key === 'Enter' && e.target.matches('tr[data-open]')) openOrder(e.target.dataset.open);
     });
 
     document.addEventListener('visibilitychange', () => {

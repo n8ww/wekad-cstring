@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="assets/css/dashboard.css?v=202610081235">
+<link rel="stylesheet" href="assets/css/dashboard.css?v=202610141358">
 </head>
 <body>
 
@@ -60,10 +60,13 @@
 <path transform="matrix(1,0,0,-1,727.3729,583.1054)" d="M0 0C-20.416 0-31.828 9.119-32.364 26.162-32.584 34.809-30.915 44.086-28.016 50.433L-25.942 50.139C-26.685 47.646-27.032 45.392-27.032 43.359-27.032 30.44-12.905 26.492 4.144 27.131 15.387 27.359 34.267 29.647 34.267 37.466 34.267 49.908 8.415 67.23-4.234 75.71L4.962 98.123 7.876 98.212C32.946 74.971 39.344 54.561 39.344 37.206 39.344 12.34 26.431-.004 0-.004Z" fill="currentColor"/>
 </svg></div>
       <nav class="side-nav">
-        <a href="#/overview"  class="nav-item" data-page="overview"><span class="ic">◧</span><span data-i18n="pOverview">نظرة عامة</span></a>
+        <span class="nav-group" data-i18n="gDaily">العمل اليومي</span>
+        <a href="#/overview"  class="nav-item" data-page="overview"><span class="ic">◧</span><span data-i18n="pOverview">الرئيسية</span></a>
         <a href="#/orders"    class="nav-item" data-page="orders"><span class="ic">▤</span><span data-i18n="pOrders">الطلبات</span><span class="badge-n" id="nav-new"></span></a>
         <a href="#/payments"  class="nav-item" data-page="payments"><span class="ic">◈</span><span data-i18n="pPayments">المدفوعات</span></a>
+        <span class="nav-group" data-i18n="gReports">التقارير</span>
         <a href="#/analytics" class="nav-item" data-page="analytics"><span class="ic">◔</span><span data-i18n="pAnalytics">التحليلات</span></a>
+        <span class="nav-group" data-i18n="gSettings">الإعدادات</span>
         <a href="#/checklist" class="nav-item" data-page="checklist"><span class="ic">☑</span><span data-i18n="pChecklist">قائمة التجهيز</span></a>
         <a href="#/closed"    class="nav-item" data-page="closed"><span class="ic">⊘</span><span data-i18n="pClosed">الأيام المقفلة</span></a>
         <a href="#/users"     class="nav-item" data-page="users"><span class="ic">◉</span><span data-i18n="pUsers">المستخدمون</span></a>
@@ -78,13 +81,16 @@
     <main class="main">
       <header class="topbar">
         <button class="btn btn-ghost btn-sm side-toggle" id="side-toggle" aria-label="القائمة" data-i18n-aria="aMenu">☰</button>
-        <h1 id="page-title">نظرة عامة</h1>
+        <h1 id="page-title">الرئيسية</h1>
         <div class="topbar-tools">
+          <div class="range-wrap" id="range-wrap">
+          <span class="range-label" data-i18n="rangeLabel">الطلبات المستلمة خلال</span>
           <div class="ranges" role="group" aria-label="المدى الزمني" data-i18n-aria="aRange">
             <button class="range-btn" data-days="7" data-i18n="d7">٧ أيام</button>
             <button class="range-btn" data-days="30" data-i18n="d30">٣٠ يوم</button>
             <button class="range-btn" data-days="90" data-i18n="d90">٩٠ يوم</button>
             <button class="range-btn on" data-days="0" data-i18n="dAll">الكل</button>
+          </div>
           </div>
           <select class="lang-pick" aria-label="Language">
             <option value="ar">العربية</option>
@@ -98,14 +104,33 @@
 
       <!-- ===== نظرة عامة ===== -->
       <section class="page on" data-page="overview">
-        <h2 class="section-title" data-i18n="secMoney">الأداء المالي</h2>
-        <div class="kpis" id="kpis-money"></div>
+        <p class="today-line" id="today-line"></p>
 
-        <h2 class="section-title" data-i18n="secTraffic">الزوار ومسار الحجز</h2>
-        <div class="kpis" id="kpis-traffic"></div>
+        <h2 class="section-title" data-i18n="attnTitle">يحتاج متابعة</h2>
+        <div class="attn" id="attn"></div>
 
-        <h2 class="section-title" data-i18n="secOps">أرقام التشغيل</h2>
-        <div class="kpis" id="kpis-ops"></div>
+        <section class="panel upcoming-panel">
+          <div class="panel-head">
+            <h2 data-i18n="upcomingTitle">المناسبات القادمة — ١٤ يوم</h2>
+            <a href="#/orders" class="note link" id="upcoming-all" data-i18n="allOrdersLink">كل الطلبات ←</a>
+          </div>
+          <div class="upcoming" id="upcoming"></div>
+        </section>
+
+        <h2 class="section-title" data-i18n="keyNumbers">الأرقام الأساسية</h2>
+        <div class="kpis kpis--main" id="kpis-main"></div>
+
+        <details class="drop">
+          <summary><span class="s-title" data-i18n="allNumbers">كل الأرقام</span><span class="s-cue" data-i18n="show">عرض</span></summary>
+          <div class="drop-body">
+            <h3 class="sub-title" data-i18n="secMoney">الأداء المالي</h3>
+            <div class="kpis" id="kpis-money"></div>
+            <h3 class="sub-title" data-i18n="secTraffic">الزوار ومسار الحجز</h3>
+            <div class="kpis" id="kpis-traffic"></div>
+            <h3 class="sub-title" data-i18n="secOps">أرقام التشغيل</h3>
+            <div class="kpis" id="kpis-ops"></div>
+          </div>
+        </details>
 
         <details class="drop">
           <summary><span class="s-title" data-i18n="chDaily">الطلبات والزوار يومياً</span><span class="s-cue" data-i18n="show">عرض</span></summary>
@@ -130,59 +155,10 @@
       <!-- ===== الطلبات ===== -->
       <section class="page" data-page="orders">
 
-        <!-- حجز يدوي: العميل الذي يتصل مباشرة بدل أن يحجز من الموقع -->
-        <details class="drop add-order" id="add-order">
-          <summary>
-            <span class="s-title" data-i18n="addOrder">إضافة حجز يدوي</span>
-            <span class="s-cue" data-i18n="show">عرض</span>
-          </summary>
-          <div class="drop-body">
-            <p class="hint" data-i18n="addOrderHint">للعميل الذي يتصل مباشرة. اكتب الأساسي الآن، وبقية التفاصيل من «تفاصيل» بعد الحفظ.</p>
-            <form id="order-form">
-              <div class="fill-grid">
-                <label><span data-i18n="fName">اسم العميل</span>
-                  <input type="text" id="o-name" required></label>
-                <label><span data-i18n="fPhone">الجوال</span>
-                  <input type="tel" id="o-phone" dir="ltr" required placeholder="05xxxxxxxx"></label>
-                <label><span data-i18n="fClientType">نوع العميل</span>
-                  <select id="o-client">
-                    <option value="individual" data-i18n="individual">أفراد</option>
-                    <option value="company" data-i18n="company">شركة</option>
-                  </select></label>
-                <label><span data-i18n="fCompany">اسم الشركة</span>
-                  <input type="text" id="o-company"></label>
-                <label><span data-i18n="fService">الخدمة</span>
-                  <select id="o-service"></select></label>
-                <label><span data-i18n="fPkgPick">الباقة</span>
-                  <select id="o-package"></select></label>
-                <label id="o-cups-wrap" hidden><span data-i18n="fCups">عدد الأكواب</span>
-                  <input type="number" id="o-cups" min="50" step="10"></label>
-                <label><span data-i18n="fEventDay">يوم المناسبة</span>
-                  <input type="date" id="o-date" required></label>
-                <label><span data-i18n="city">المدينة</span>
-                  <select id="o-city"></select></label>
-                <label><span data-i18n="fDays">عدد الأيام</span>
-                  <input type="number" id="o-days" min="1" max="30" value="1"></label>
-                <label><span data-i18n="fBefore">السعر قبل الخصم (ر.س)</span>
-                  <input type="number" id="o-before" min="0" step="0.01"></label>
-                <label><span data-i18n="fTotal">السعر بعد الخصم (ر.س)</span>
-                  <input type="number" id="o-total" min="0" step="0.01"></label>
-                <label><span data-i18n="status">الحالة</span>
-                  <select id="o-status">
-                    <option value="new" data-i18n="stNew">جديد</option>
-                    <option value="contacted" data-i18n="stContacted">تواصلنا</option>
-                    <option value="confirmed" selected data-i18n="stConfirmed">مؤكّد</option>
-                  </select></label>
-                <label class="wide"><span data-i18n="dNotes">ملاحظات</span>
-                  <input type="text" id="o-notes"></label>
-              </div>
-              <div class="fill-actions">
-                <button type="submit" class="btn btn-solid btn-sm" data-i18n="saveOrder">حفظ الحجز</button>
-                <span class="fill-msg" id="o-msg"></span>
-              </div>
-            </form>
-          </div>
-        </details>
+        <div class="orders-top">
+          <div class="chips" id="status-chips" role="group"></div>
+          <button class="btn btn-solid" id="new-order-btn" data-i18n="newBooking">+ حجز جديد</button>
+        </div>
 
         <div class="toolbar">
           <label class="f grow">
@@ -190,14 +166,11 @@
             <input type="search" id="q" placeholder="اكتب للبحث…" data-i18n-ph="phSearch">
           </label>
           <label class="f">
-            <span data-i18n="status">الحالة</span>
-            <select id="filter-status">
-              <option value="" data-i18n="all">الكل</option>
-              <option value="new" data-i18n="stNew">جديد</option>
-              <option value="contacted" data-i18n="stContacted">تواصلنا</option>
-              <option value="confirmed" data-i18n="stConfirmed">مؤكّد</option>
-              <option value="done" data-i18n="stDone">منجز</option>
-              <option value="cancelled" data-i18n="stCancelled">ملغي</option>
+            <span data-i18n="eventDateLbl">تاريخ المناسبة</span>
+            <select id="filter-when">
+              <option value="" data-i18n="whenAll">كل التواريخ</option>
+              <option value="upcoming" data-i18n="whenUpcoming">القادمة</option>
+              <option value="past" data-i18n="whenPast">السابقة</option>
             </select>
           </label>
           <label class="f">
@@ -214,9 +187,8 @@
               <tr>
                 <th class="sortable" data-sort="created_at"><span data-i18n="thRef">رقم الطلب</span> <span class="arrow">⇅</span></th>
                 <th class="sortable" data-sort="customer_name"><span data-i18n="thCustomer">العميل</span> <span class="arrow">⇅</span></th>
-                <th data-i18n="thPhone">الجوال</th>
+                <th class="sortable" data-sort="event_date"><span data-i18n="thEvent">المناسبة</span> <span class="arrow">⇅</span></th>
                 <th class="sortable" data-sort="package_name"><span data-i18n="thPackage">الباقة</span> <span class="arrow">⇅</span></th>
-                <th class="sortable" data-sort="setup_date"><span data-i18n="thSetupWork">التركيب / العمل</span> <span class="arrow">⇅</span></th>
                 <th class="sortable" data-sort="city"><span data-i18n="thLocation">الموقع</span> <span class="arrow">⇅</span></th>
                 <th class="sortable" data-sort="total"><span data-i18n="thTotal">الإجمالي</span> <span class="arrow">⇅</span></th>
                 <th data-i18n="thStatus">الحالة</th>
@@ -404,6 +376,75 @@
   </div>
 </div>
 
+<!-- ===== لوحة الطلب الجانبية ===== -->
+<div class="drawer" id="order-drawer" hidden>
+  <div class="drawer-backdrop" data-drawer-close></div>
+  <aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+    <div class="drawer-inner" id="drawer-inner"></div>
+  </aside>
+</div>
+
+<!-- ===== حجز يدوي: للعميل الذي يتصل مباشرة ===== -->
+<div class="drawer" id="new-drawer" hidden>
+  <div class="drawer-backdrop" data-drawer-close></div>
+  <aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="new-title">
+    <div class="drawer-inner">
+      <header class="drawer-head">
+        <div class="dh-top">
+          <h2 id="new-title" data-i18n="addOrder">إضافة حجز يدوي</h2>
+          <button type="button" class="icon-btn" data-drawer-close aria-label="إغلاق" data-i18n-aria="close">✕</button>
+        </div>
+        <p class="hint" data-i18n="addOrderHint">للعميل الذي يتصل مباشرة.</p>
+      </header>
+      <div class="drawer-body">
+            <form id="order-form">
+              <div class="fill-grid">
+                <label><span data-i18n="fName">اسم العميل</span>
+                  <input type="text" id="o-name" required></label>
+                <label><span data-i18n="fPhone">الجوال</span>
+                  <input type="tel" id="o-phone" dir="ltr" required placeholder="05xxxxxxxx"></label>
+                <label><span data-i18n="fClientType">نوع العميل</span>
+                  <select id="o-client">
+                    <option value="individual" data-i18n="individual">أفراد</option>
+                    <option value="company" data-i18n="company">شركة</option>
+                  </select></label>
+                <label><span data-i18n="fCompany">اسم الشركة</span>
+                  <input type="text" id="o-company"></label>
+                <label><span data-i18n="fService">الخدمة</span>
+                  <select id="o-service"></select></label>
+                <label><span data-i18n="fPkgPick">الباقة</span>
+                  <select id="o-package"></select></label>
+                <label id="o-cups-wrap" hidden><span data-i18n="fCups">عدد الأكواب</span>
+                  <input type="number" id="o-cups" min="50" step="10"></label>
+                <label><span data-i18n="fEventDay">يوم المناسبة</span>
+                  <input type="date" id="o-date" required></label>
+                <label><span data-i18n="city">المدينة</span>
+                  <select id="o-city"></select></label>
+                <label><span data-i18n="fDays">عدد الأيام</span>
+                  <input type="number" id="o-days" min="1" max="30" value="1"></label>
+                <label><span data-i18n="fBefore">السعر قبل الخصم (ر.س)</span>
+                  <input type="number" id="o-before" min="0" step="0.01"></label>
+                <label><span data-i18n="fTotal">السعر بعد الخصم (ر.س)</span>
+                  <input type="number" id="o-total" min="0" step="0.01"></label>
+                <label><span data-i18n="status">الحالة</span>
+                  <select id="o-status">
+                    <option value="new" data-i18n="stNew">جديد</option>
+                    <option value="contacted" data-i18n="stContacted">تواصلنا</option>
+                    <option value="confirmed" selected data-i18n="stConfirmed">مؤكّد</option>
+                  </select></label>
+                <label class="wide"><span data-i18n="dNotes">ملاحظات</span>
+                  <input type="text" id="o-notes"></label>
+              </div>
+              <div class="fill-actions">
+                <button type="submit" class="btn btn-solid btn-sm" data-i18n="saveOrder">حفظ الحجز</button>
+                <span class="fill-msg" id="o-msg"></span>
+              </div>
+            </form>
+      </div>
+    </div>
+  </aside>
+</div>
+
 <!-- ===== شاشة الموظف: الجدول فقط ===== -->
 <div id="staff-view" hidden>
   <div class="wrap">
@@ -447,9 +488,9 @@
 
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="assets/js/dash-i18n.js?v=202610081235"></script>
-<script src="assets/js/catalog.js?v=202610081235"></script>
-<script src="assets/js/config.js?v=202610081235"></script>
-<script src="assets/js/dashboard.js?v=202610081235"></script>
+<script src="assets/js/dash-i18n.js?v=202610141358"></script>
+<script src="assets/js/catalog.js?v=202610141358"></script>
+<script src="assets/js/config.js?v=202610141358"></script>
+<script src="assets/js/dashboard.js?v=202610141358"></script>
 </body>
 </html>

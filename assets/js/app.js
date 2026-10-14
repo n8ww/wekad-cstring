@@ -127,10 +127,8 @@
   // Analytics is optional: the app must behave identically when it is absent.
   const track = (name, params) => { try { window.wekadTrack?.(name, params); } catch { /* never break the form */ } };
 
-  const blockedDays = new Map();   // 'YYYY-MM-DD' -> سبب الإقفال
-
-  // المُشغّل في قاعدة البيانات يكتب 'booked' لليوم المحجوز؛ لا يُعرض كما هو
-  const blockReason = (why) => (why === 'booked' ? 'محجوز' : why);
+  // سبب الإقفال داخلي للفريق ولا يُطلب من الأساس؛ العميل يرى «غير متاح» فقط
+  const blockedDays = new Set();   // 'YYYY-MM-DD'
 
   /** الأيام التي أقفلها المدير من اللوحة. فشل التحميل لا يمنع الحجز. */
   async function loadBlockedDays() {
@@ -139,11 +137,11 @@
     try {
       const today = new Date().toISOString().slice(0, 10);
       const response = await fetch(
-        `${cfg.SUPABASE_URL}/rest/v1/blocked_dates?select=day,reason&day=gte.${today}`,
+        `${cfg.SUPABASE_URL}/rest/v1/blocked_dates?select=day&day=gte.${today}`,
         { headers: { apikey: cfg.SUPABASE_KEY, Authorization: `Bearer ${cfg.SUPABASE_KEY}` } },
       );
       if (!response.ok) return;
-      (await response.json()).forEach((row) => blockedDays.set(row.day, row.reason || ''));
+      (await response.json()).forEach((row) => blockedDays.add(row.day));
       renderCalendar();
     } catch { /* الموقع يعمل بدونها */ }
   }
@@ -426,7 +424,6 @@
       const past = iso <= today;
       const blocked = blockedDays.has(iso);
       const picked = iso === state.date;
-      const why = blocked ? blockReason(blockedDays.get(iso)) : '';
       const cls = ['cal-day'];
       if (past) cls.push('is-past');
       if (blocked) cls.push('is-blocked');
@@ -434,7 +431,7 @@
       cells.push(
         `<button type="button" class="${cls.join(' ')}" data-day="${iso}"`
         + `${past || blocked ? ' disabled' : ''}`
-        + `${blocked ? ` title="غير متاح${why ? ` — ${escapeHtml(why)}` : ''}"` : ''}`
+        + `${blocked ? ' title="غير متاح"' : ''}`
         + `${picked ? ' aria-current="date"' : ''}>${day}</button>`,
       );
     }
@@ -511,10 +508,7 @@
       const today = ymd(new Date());
       if (!state.date) return 'اختر يوم المناسبة من التقويم.';
       if (state.date <= today) return 'اختر يوماً بعد اليوم.';
-      if (blockedDays.has(state.date)) {
-        const why = blockReason(blockedDays.get(state.date));
-        return `هذا اليوم غير متاح${why ? ` — ${why}` : ''}. اختر يوماً آخر.`;
-      }
+      if (blockedDays.has(state.date)) return 'هذا اليوم غير متاح. اختر يوماً آخر.';
     }
     if (PANES[state.step] === 'client') {
       if (state.name.trim().length < 3) return 'اكتب اسمك الكامل.';
@@ -778,7 +772,7 @@
       lng: state.lng,
       client_type: state.clientType,
       customer_name: state.name,
-      phone: state.phone,
+      phone: state.phone.replace(/[\s-]/g, ''),
       company: state.clientType === 'company' ? state.company : null,
       vat: state.clientType === 'company' ? state.vat : null,
       notes: state.notes,
