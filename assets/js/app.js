@@ -509,6 +509,11 @@
       if (!state.date) return 'اختر يوم المناسبة من التقويم.';
       if (state.date <= today) return 'اختر يوماً بعد اليوم.';
       if (blockedDays.has(state.date)) return 'هذا اليوم غير متاح. اختر يوماً آخر.';
+      // الدبوس إلزامي ليصل الفريق مباشرة؛ إلا إن تعذّر تحميل الخريطة على جهاز العميل
+      if ((state.lat == null || state.lng == null) && map) {
+        $('.map-block')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return 'حدّد موقع المناسبة على الخريطة — اضغط على المكان أو «موقعي الحالي».';
+      }
     }
     if (PANES[state.step] === 'client') {
       if (state.name.trim().length < 3) return 'اكتب اسمك الكامل.';
