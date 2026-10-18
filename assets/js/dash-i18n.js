@@ -271,6 +271,8 @@
       call: 'اتصال', whatsapp: 'واتساب', close: 'إغلاق',
       unsaved: 'عندك تعديلات ما حُفظت. تطلع بدون حفظ؟',
       cancelledMsg: 'أُلغي الطلب.',
+      slowNet: 'الاتصال بطيء — ما وصل الرد خلال ٢٠ ثانية. تأكد من الإنترنت وحاول مرة ثانية.',
+      noNet: 'تعذّر الاتصال — تأكد من الإنترنت وحاول مرة ثانية.',
     },
 
     en: {
@@ -482,6 +484,8 @@
       call: 'Call', whatsapp: 'WhatsApp', close: 'Close',
       unsaved: 'You have unsaved changes. Leave without saving?',
       cancelledMsg: 'Order cancelled.',
+      slowNet: 'Slow connection — no reply within 20 seconds. Check the internet and try again.',
+      noNet: 'Could not connect — check the internet and try again.',
     },
 
     tl: {
@@ -693,6 +697,8 @@
       call: 'Tawagan', whatsapp: 'WhatsApp', close: 'Isara',
       unsaved: 'May hindi pa na-save na pagbabago. Umalis nang hindi nagse-save?',
       cancelledMsg: 'Kinansela ang order.',
+      slowNet: 'Mabagal ang koneksyon — walang sagot sa loob ng 20 segundo. Subukan ulit.',
+      noNet: 'Hindi makakonekta — tingnan ang internet at subukan ulit.',
     },
   };
 

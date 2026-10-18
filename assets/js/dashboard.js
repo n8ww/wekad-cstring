@@ -379,13 +379,25 @@
    * فقط، والحجز اليدوي يُسجَّل غالباً «مؤكّداً». مشغّل إقفال اليوم يعمل كذلك.
    */
   async function saveManualOrder(row) {
-    const response = await api('/rest/v1/orders', {
-      method: 'POST',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify(row),
-    });
-    if (response.ok) return { ok: true };
-    return { ok: false, error: (await response.text()).slice(0, 180) };
+    // الصف يرجع من القاعدة بمعرّفه، فيُضاف للقائمة دون إعادة تحميل اللوحة كلها.
+    // ومهلة ٢٠ ثانية حتى لا يبقى الزر معلّقاً إن انقطع الاتصال.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    try {
+      const response = await api('/rest/v1/orders', {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify(row),
+        signal: ctrl.signal,
+      });
+      if (!response.ok) return { ok: false, error: (await response.text()).slice(0, 180) };
+      const rows = await response.json().catch(() => []);
+      return { ok: true, saved: Array.isArray(rows) ? rows[0] : null };
+    } catch (error) {
+      return { ok: false, error: error.name === 'AbortError' ? t('slowNet') : t('noNet') };
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async function createStaffAccount(email, password) {
@@ -2533,8 +2545,12 @@
       button.disabled = true;
       msg.textContent = t('working');
       msg.className = 'fill-msg';
-      const result = await saveManualOrder(row);
-      button.disabled = false;
+      let result;
+      try {
+        result = await saveManualOrder(row);
+      } finally {
+        button.disabled = false;
+      }
 
       if (!result.ok) {
         msg.textContent = `${t('failSave')} — ${result.error}`;
@@ -2546,9 +2562,15 @@
       e.target.reset();
       syncPackageOptions();
       drawerDirty = false;
-      await showDashboard({ quiet: true });  // يظهر في الجدول
-      const saved = allOrders.find((o) => o.ref === row.ref);
-      if (saved) { closeDrawer(true); openOrder(saved.id, t('orderSaved', { ref: row.ref })); }
+      if (result.saved) {
+        allOrders.unshift(result.saved);   // يظهر فوراً بلا إعادة تحميل
+        applyRange();
+        fillCityFilter();
+        closeDrawer(true);
+        openOrder(result.saved.id, t('orderSaved', { ref: row.ref }));
+      } else {
+        showDashboard({ quiet: true });
+      }
     });
 
     $('#new-order-btn')?.addEventListener('click', () => {
