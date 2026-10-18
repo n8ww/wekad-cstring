@@ -319,7 +319,7 @@
 
     const rows = [
       ['الخدمة', SERVICES[state.service].ar],
-      ['باريستا مشمولة مجاناً', wantsFemaleBarista() ? 'لا يوجد — اختيرت باريستا امرأة' : `${includedBaristas()}`],
+      ['باريستا مشمول (رجل) مجاناً', wantsFemaleBarista() ? 'لا يوجد — اختيرت باريستا امرأة' : `${includedBaristas()}`],
       [state.service === 'counter' ? 'الباقة' : 'الحافظات', sizeText],
       ...(isCustom() ? [['طلبك الخاص', state.customRequest]] : []),
       ['يوم المناسبة', state.date ? prettyPicked(state.date) : '—'],
@@ -686,8 +686,8 @@
     out.push('*٣ · الإضافات*');
     out.push(HR);
     out.push(wantsFemaleBarista()
-      ? '▪︎ باريستا مشمولة مجاناً: لا يوجد — العميل اختار باريستا امرأة'
-      : `▪︎ باريستا مشمولة مجاناً: ${includedBaristas()}`);
+      ? '▪︎ باريستا مشمول (رجل) مجاناً: لا يوجد — العميل اختار باريستا امرأة'
+      : `▪︎ باريستا مشمول (رجل) مجاناً: ${includedBaristas()}`);
     if (addons.length) {
       addons.forEach((l) => {
         out.push(`▪︎ ${l.ar}`);
