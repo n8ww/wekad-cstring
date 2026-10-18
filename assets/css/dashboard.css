@@ -1500,3 +1500,23 @@ body.drawer-open { overflow: hidden; }
   .orders-top .btn { width: 100%; }
 }
 a.btn { text-decoration: none; }
+
+/* زر «تم الدفع كاملاً» */
+.btn-paid { background: var(--brand-wash); border-color: #cfe8dc; color: var(--brand-deep); }
+.btn-paid:hover { background: #dff0e7; }
+#pay-table .btn-paid { margin-block-start: 0.35rem; display: block; }
+
+/* مدى «من – إلى» */
+.range-custom { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.range-custom input {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
+  background: var(--surface);
+}
+.range-wrap { flex-wrap: wrap; }
+@media (max-width: 760px) {
+  .range-custom { width: 100%; }
+  .range-custom input { flex: 1; min-width: 0; }
+}

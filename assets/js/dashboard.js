@@ -43,6 +43,7 @@
   let scopedVisits = [];
   let scoped = [];      // بعد تطبيق المدى الزمني
   let rangeDays = 0;    // 0 = كل الفترات
+  let customRange = null; // { from, to } بصيغة YYYY-MM-DD عند اختيار «من – إلى»
   let sortKey = 'created_at';
   let sortDir = -1;
   let statusFilter = '';   // زر الحالة المختار في صفحة الطلبات
@@ -793,8 +794,23 @@
     ]);
   }
 
+  /** حدود المدى المخصص كتواريخ: من بداية يوم «من» إلى نهاية يوم «إلى». */
+  function customBounds() {
+    const from = new Date(`${customRange.from}T00:00:00`);
+    const to = new Date(`${customRange.to}T23:59:59.999`);
+    return { from, to, days: Math.round((startOfDay(to) - from) / 86400000) + 1 };
+  }
+
   /** المدى السابق بنفس الطول، للمقارنة. */
   function previousWindow(days) {
+    if (customRange) {
+      const b = customBounds();
+      const start = new Date(b.from); start.setDate(start.getDate() - b.days);
+      return allOrders.filter((r) => {
+        const d = new Date(r.created_at);
+        return d >= start && d < b.from;
+      });
+    }
     if (!days) return [];
     const end = new Date(); end.setDate(end.getDate() - days);
     const start = new Date(end); start.setDate(start.getDate() - days);
@@ -813,10 +829,10 @@
     return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit);
   }
 
-  function byDay(rows, days) {
+  function byDay(rows, days, end = new Date()) {
     const buckets = [];
     for (let i = days - 1; i >= 0; i--) {
-      const d = startOfDay(new Date());
+      const d = startOfDay(end);
       d.setDate(d.getDate() - i);
       buckets.push({ date: d, count: 0, revenue: 0 });
     }
@@ -918,8 +934,9 @@
   }
 
   function renderDaily() {
-    const days = rangeDays && rangeDays <= 30 ? rangeDays : 30;
-    const orderBuckets = byDay(scoped, days);
+    const custom = customRange ? customBounds() : null;
+    const days = custom ? Math.min(custom.days, 60) : (rangeDays && rangeDays <= 30 ? rangeDays : 30);
+    const orderBuckets = byDay(scoped, days, custom ? custom.to : new Date());
 
     const views = scopedVisits.filter((v) => v.event === 'page_view');
     const visitorBuckets = orderBuckets.map((b) => {
@@ -1160,6 +1177,7 @@
           ${fRow(t('fEventTime'), 'event_time', 'time', r.event_time)}
           ${fRow(t('fDays'), 'days', 'number', r.days, ' min="1" max="30"')}
           ${fRow(t('fBaristas'), 'included_baristas', 'number', r.included_baristas, ' min="0" max="20"')}
+          ${fRow(t('fBaristasF'), 'female_baristas', 'number', femaleOf(r), ' min="0" max="20"')}
         </div>
 
         <h5 class="fill-sec">${t('fSecMoney')}</h5>
@@ -1192,7 +1210,7 @@
 
         <h5 class="fill-sec">${t('fItems')}</h5>
         <div class="items-edit" data-items>
-          ${items.map((it) => itemRow(it)).join('')}
+          ${items.filter((it) => !isFemaleItem(it)).map((it) => itemRow(it)).join('')}
         </div>
         <button type="button" class="btn btn-ghost btn-sm" data-item-add>${t('fItemAdd')}</button>
       </div>`;
@@ -1337,6 +1355,24 @@
       };
     }).filter(Boolean);
 
+    // الباريستا البنت تُدار من خانتها، لا من محرّر الأصناف
+    const female = number('female_baristas') || 0;
+    const orig = allOrders.find((o) => String(o.id) === String(id));
+    const oldFemale = orig ? itemsOf(orig).find(isFemaleItem) : null;
+    const dayCount = number('days') || 1;
+    if (female > 0) {
+      items.push({
+        ...(oldFemale || {}),
+        id: FEMALE_ID,
+        name: 'باريستا إضافية (امرأة)',
+        kind: 'addon',
+        unit: 'باريستا',
+        qty: female,
+        price: oldFemale?.price ?? 300,
+        total: (oldFemale?.price ?? 300) * female * dayCount,
+      });
+    }
+
     const fields = {
       setup_date: data.get('setup_date'),
       setup_time: data.get('setup_time'),
@@ -1409,6 +1445,12 @@
     const intl = d.startsWith('966') ? d : d.startsWith('0') ? `966${d.slice(1)}` : d.startsWith('5') ? `966${d}` : d;
     return `https://wa.me/${intl}`;
   }
+
+  /** صنف الباريستا البنت (يُسجَّل كإضافة، كما يحفظه الموقع). */
+  const FEMALE_ID = 'barista';
+  const isFemaleItem = (i) => i && (i.id === FEMALE_ID || i.unit === 'باريستا');
+  const femaleOf = (r) => Number(itemsOf(r).find(isFemaleItem)?.qty) || 0;
+  const baristaMix = (r) => t('baristaMix', { m: n0(r.included_baristas), f: n0(femaleOf(r)) });
 
   /** ما ينقص الطلب قبل يوم التنفيذ. يُحسب للطلبات المفتوحة فقط. */
   function missingOf(r) {
@@ -1644,6 +1686,9 @@
             ${r.phone ? `<a class="btn btn-ghost btn-sm" href="tel:${esc(r.phone)}">${t('call')}</a>` : ''}
             ${wa ? `<a class="btn btn-ghost btn-sm" href="${wa}" target="_blank" rel="noopener">${t('whatsapp')}</a>` : ''}
             ${maps ? `<a class="btn btn-ghost btn-sm" href="${maps}" target="_blank" rel="noopener">${t('openMap')}</a>` : ''}
+            ${Number(r.total) > 0 && remainingOf(r) > 0.009
+              ? `<button type="button" class="btn btn-paid btn-sm" data-paid="${r.id}">${t('markPaid')}</button>`
+              : (Number(r.total) > 0 ? `<span class="pay-pill pay-full">${t('payFull')}</span>` : '')}
           </div>
           ${needsCheck(r) ? missingChips(r) : ''}
         </header>
@@ -1654,6 +1699,7 @@
             <div><dt>${t('thTotal')}</dt><dd class="num">${n2(r.total)} ${t('sar')}${d ? ` <span class="disc">−${d.pct}%</span>` : ''}</dd></div>
             <div><dt>${t('thDeposit')}</dt><dd class="num">${r.deposit ? `${n2(r.deposit)} ${t('sar')}` : '—'}</dd></div>
             <div><dt>${t('thRemaining')}</dt><dd class="num">${n2(remainingOf(r))} ${t('sar')}</dd></div>
+            <div><dt>${t('thBaristas')}</dt><dd>${baristaMix(r)}</dd></div>
           </section>
           ${items.length ? `<ul class="items-list">${items.map((i) => `
             <li><span>${esc(itemName(i))} — <span class="num">${esc(i.qty)}</span> ${esc(unitName2(i.unit))}${i.total_pieces ? ` · ${n0(i.total_pieces)} ${unitName2('حبة')}` : ''}</span>
@@ -1744,7 +1790,8 @@
           <td data-label="${t('thDeposit')}" class="num">${r.deposit ? n2(r.deposit) : '—'}</td>
           <td data-label="${t('thDepositDate')}" class="tab">${dateOnly(r.deposit_date)}</td>
           <td data-label="${t('thRemaining')}" class="num">${n2(remainingOf(r))}</td>
-          <td data-label="${t('thPayState')}"><span class="pay-pill pay-${st.key}">${st.label}</span></td>
+          <td data-label="${t('thPayState')}"><span class="pay-pill pay-${st.key}">${st.label}</span>
+            ${st.key !== 'full' && Number(r.total) > 0 ? `<button type="button" class="btn btn-paid btn-sm" data-paid="${r.id}">${t('markPaid')}</button>` : ''}</td>
         </tr>`;
       }).join('');
   }
@@ -1802,6 +1849,7 @@
       { h: t('fVenue'),      t: 'txt',   w: 26, v: (r) => r.venue },
       { h: t('thMapLink'),   t: 'link',  w: 14, v: (r) => (r.lat && r.lng ? `https://maps.google.com/?q=${r.lat},${r.lng}` : '') },
       { h: t('dBaristas'),   t: 'num',   w: 9,  v: (r) => r.included_baristas },
+      { h: t('fBaristasF'),  t: 'num',   w: 9,  v: (r) => femaleOf(r) || null },
       { h: t('dAddons'),     t: 'money', w: 12, v: (r) => r.addons_total, z: money },
       { h: t('dSweets'),     t: 'money', w: 12, v: (r) => r.desserts_total, z: money },
       { h: t('dBefore'),     t: 'money', w: 14, v: (r) => r.price_before, z: money },
@@ -1905,7 +1953,12 @@
 
   // ---------- المدى الزمني ----------
   function applyRange() {
-    if (!rangeDays) {
+    if (customRange) {
+      const { from, to } = customBounds();
+      const inside = (x) => { const d = new Date(x.created_at); return d >= from && d <= to; };
+      scoped = allOrders.filter(inside);
+      scopedVisits = allVisits.filter(inside);
+    } else if (!rangeDays) {
       scoped = allOrders.slice();
       scopedVisits = allVisits.slice();
     } else {
@@ -2064,7 +2117,7 @@
               <div class="jf">
                 <span class="jf-label">${t('serviceNeeded')}</span>
                 <span class="jf-value">${esc(packageLabel(r))}</span>
-                <span class="jf-sub">${esc(r.included_baristas)} ${t('baristas')}</span>
+                <span class="jf-sub">${baristaMix(r)}</span>
               </div>
               <div class="jf">
                 <span class="jf-label">${t('customer')}</span>
@@ -2348,10 +2401,34 @@
     $('#filter-city')?.addEventListener('change', renderTable);
 
     $$('.range-btn').forEach((b) => b.addEventListener('click', () => {
+      if (b.dataset.days === 'custom') {
+        // «من – إلى» يفتح خانتي التاريخ؛ المدى يُطبَّق عند «عرض»
+        const box = $('#range-custom');
+        box.hidden = !box.hidden;
+        if (!box.hidden && !$('#range-from').value) {
+          const d = new Date(); d.setDate(d.getDate() - 29);
+          $('#range-from').value = d.toISOString().slice(0, 10);
+          $('#range-to').value = todayIso();
+        }
+        return;
+      }
       $$('.range-btn').forEach((x) => x.classList.toggle('on', x === b));
+      $('#range-custom').hidden = true;
+      customRange = null;
       rangeDays = Number(b.dataset.days);
       applyRange();
     }));
+
+    $('#range-apply')?.addEventListener('click', () => {
+      let from = $('#range-from').value;
+      let to = $('#range-to').value || todayIso();
+      if (!from) return;
+      if (to < from) [from, to] = [to, from];
+      customRange = { from, to };
+      $$('.range-btn').forEach((x) => x.classList.toggle('on', x.dataset.days === 'custom'));
+      $('#range-custom').hidden = true;
+      applyRange();
+    });
 
     $$('#orders-table th.sortable').forEach((th) => th.addEventListener('click', () => {
       const key = th.dataset.sort;
@@ -2533,8 +2610,11 @@
         company: v('#o-client') === 'company' ? (v('#o-company') || null) : null,
         vat: null,
         notes: v('#o-notes') || null,
-        included_baristas: service === 'flask' ? 0 : 1,
-        items: [],
+        included_baristas: num('#o-male') ?? (service === 'flask' ? 0 : 1),
+        items: (num('#o-female') || 0) > 0 ? [{
+          id: FEMALE_ID, name: 'باريستا إضافية (امرأة)', kind: 'addon', unit: 'باريستا',
+          qty: num('#o-female'), price: 300, total: 300 * num('#o-female') * (num('#o-days') || 1),
+        }] : [],
         desserts_total: 0,
         addons_total: 0,
         total: num('#o-total') ?? 0,
@@ -2742,8 +2822,27 @@
     // أي تعديل داخل لوحة جانبية يُعلَّم، فلا تُغلق بلا تنبيه
     $$('.drawer').forEach((d) => d.addEventListener('input', () => { drawerDirty = true; }));
 
-    document.addEventListener('click', (e) => {
+    document.addEventListener('click', async (e) => {
       if (e.target.closest('[data-drawer-close]')) { closeDrawer(); return; }
+
+      // «تم الدفع كاملاً»: العربون = الإجمالي، بتاريخ اليوم
+      const paidBtn = e.target.closest('[data-paid]');
+      if (paidBtn) {
+        const id = paidBtn.dataset.paid;
+        const row = allOrders.find((o) => String(o.id) === String(id));
+        if (!row) return;
+        const inDrawer = String(drawerId) === String(id);
+        if (inDrawer && drawerDirty && !confirm(t('unsaved'))) return;
+        paidBtn.disabled = true;
+        const fields = { deposit: Number(row.total) || 0, deposit_date: todayIso() };
+        const result = await patchOrder(id, fields);
+        paidBtn.disabled = false;
+        if (!result.ok) { alert(t('failSave')); return; }
+        Object.assign(row, fields);
+        applyRange();
+        if (inDrawer) openOrder(id, t('paidMsg'));
+        return;
+      }
 
       // أي عنصر يحمل data-open يفتح الطلب — إلا الروابط والقوائم داخله
       const opener = e.target.closest('[data-open]');
