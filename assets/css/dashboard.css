@@ -1520,3 +1520,90 @@ a.btn { text-decoration: none; }
   .range-custom { width: 100%; }
   .range-custom input { flex: 1; min-width: 0; }
 }
+
+/* ==========================================================================
+   نموذج الطلب: خطوات مرقّمة بترتيب المكالمة، خانتان في السطر، وهدوء أكثر
+   ========================================================================== */
+.fill-fields { display: grid; gap: 0.9rem; border: 0; padding: 0; margin-block-start: 1.2rem; }
+.fs {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1rem 1.1rem 1.1rem;
+}
+.fs-h {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin-block-end: 0.9rem;
+}
+.fs-n {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--brand-wash);
+  color: var(--brand);
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex: none;
+}
+.fs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem 1rem; }
+.fs-grid .wide { grid-column: 1 / -1; }
+
+.ff { display: grid; gap: 0.3rem; align-content: start; }
+.ff-l { font-size: 0.8rem; font-weight: 500; color: var(--ink-2); display: flex; align-items: center; gap: 0.4rem; }
+.ff-h { font-size: 0.72rem; color: var(--ink-muted); line-height: 1.4; }
+.req {
+  font-style: normal;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: #8a4b0f;
+  background: #fff1e0;
+  border-radius: 6px;
+  padding: 0.02rem 0.4rem;
+}
+.ff input, .ff select, .ff textarea {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+.ff textarea { resize: vertical; min-height: 2.8rem; }
+.ff input:focus, .ff select:focus, .ff textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-ring);
+}
+.ff input:disabled { background: var(--surface-sunk); color: var(--ink-2); font-weight: 600; }
+
+/* مطلوب وفاضي: إطار وخلفية دافئة — يلفت النظر بدون ما يمنع الحفظ */
+.ff.is-empty input, .ff.is-empty select, .ff.is-empty textarea { border-color: #e9b97e; background: #fffaf2; }
+.ff:not(.is-empty) .req { color: var(--brand-deep); background: var(--brand-wash); }
+.pin { border: 1px solid var(--line); border-radius: 12px; padding: 0.8rem; background: var(--surface-2); }
+.pin.is-empty { border-color: #e9b97e; background: #fffaf2; }
+.pin:not(.is-empty) .req { color: var(--brand-deep); background: var(--brand-wash); }
+.pin-head { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+
+.fs-more { margin-block-start: 0.9rem; border-block-start: 1px dashed var(--line); padding-block-start: 0.7rem; }
+.fs-more > summary { cursor: pointer; font-size: 0.8rem; color: var(--brand-bright); font-weight: 500; list-style: none; }
+.fs-more > summary::-webkit-details-marker { display: none; }
+.fs-more > summary::before { content: '+ '; }
+.fs-more[open] > summary::before { content: '− '; }
+.fs-more[open] > .fs-grid { margin-block-start: 0.8rem; }
+
+.drawer-body .items-edit { margin-block: 0.4rem 0.5rem; }
+.archive-hint { margin-block: 0 0.8rem; }
+
+@media (max-width: 560px) {
+  .fs-grid { grid-template-columns: 1fr; }
+  .fs { padding: 0.9rem; }
+}

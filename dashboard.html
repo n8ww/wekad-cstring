@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="assets/css/dashboard.css?v=202610261200">
+<link rel="stylesheet" href="assets/css/dashboard.css?v=202610261211">
 </head>
 <body>
 
@@ -63,6 +63,7 @@
         <span class="nav-group" data-i18n="gDaily">العمل اليومي</span>
         <a href="#/overview"  class="nav-item" data-page="overview"><span class="ic">◧</span><span data-i18n="pOverview">الرئيسية</span></a>
         <a href="#/orders"    class="nav-item" data-page="orders"><span class="ic">▤</span><span data-i18n="pOrders">الطلبات</span><span class="badge-n" id="nav-new"></span></a>
+        <a href="#/archive"   class="nav-item" data-page="archive"><span class="ic">⧖</span><span data-i18n="pArchive">السجل</span></a>
         <a href="#/payments"  class="nav-item" data-page="payments"><span class="ic">◈</span><span data-i18n="pPayments">المدفوعات</span></a>
         <span class="nav-group" data-i18n="gReports">التقارير</span>
         <a href="#/analytics" class="nav-item" data-page="analytics"><span class="ic">◔</span><span data-i18n="pAnalytics">التحليلات</span></a>
@@ -162,6 +163,7 @@
       <!-- ===== الطلبات ===== -->
       <section class="page" data-page="orders">
 
+        <p class="hint archive-hint" id="archive-hint" data-i18n="archiveHint" hidden>الطلبات المنجزة والملغية، والطلبات اللي فات يومها.</p>
         <div class="orders-top">
           <div class="chips" id="status-chips" role="group"></div>
           <button class="btn btn-solid" id="new-order-btn" data-i18n="newBooking">+ حجز جديد</button>
@@ -499,9 +501,9 @@
 
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="assets/js/dash-i18n.js?v=202610261200"></script>
-<script src="assets/js/catalog.js?v=202610261200"></script>
-<script src="assets/js/config.js?v=202610261200"></script>
-<script src="assets/js/dashboard.js?v=202610261200"></script>
+<script src="assets/js/dash-i18n.js?v=202610261211"></script>
+<script src="assets/js/catalog.js?v=202610261211"></script>
+<script src="assets/js/config.js?v=202610261211"></script>
+<script src="assets/js/dashboard.js?v=202610261211"></script>
 </body>
 </html>

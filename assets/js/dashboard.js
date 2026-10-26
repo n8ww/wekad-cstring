@@ -47,6 +47,8 @@
   let sortKey = 'created_at';
   let sortDir = -1;
   let statusFilter = '';   // زر الحالة المختار في صفحة الطلبات
+  let listMode = 'active'; // active = الطلبات الجارية · archive = السجل
+  let pendingFilter = null; // تصفية تأتي من «عرض الكل» في الرئيسية
   let drawerId = null;     // الطلب المفتوح في اللوحة الجانبية
   let drawerDirty = false; // تعديلات لم تُحفظ بعد
 
@@ -1050,6 +1052,7 @@
     const today = todayIso();
 
     const rows = scoped.filter((r) => {
+      if (!inMode(r)) return false;
       if (statusFilter === 'missing') {
         if (!needsCheck(r) || !missingOf(r).length) return false;
       } else if (statusFilter && r.status !== statusFilter) return false;
@@ -1130,6 +1133,36 @@
       </div>`;
   }
 
+  /**
+   * خانة واحدة. المطلوبة تحمل علامة «مطلوب» وتتلوّن ما دامت فاضية — تنبيه
+   * بصري فقط، فالحفظ لا يُمنع ونقدر نسجّل ما عندنا الآن ونكمل لاحقاً.
+   */
+  function ff(label, control, { req = false, wide = false, hint = '', empty = false } = {}) {
+    return `<label class="ff${wide ? ' wide' : ''}${req ? ' is-req' : ''}${req && empty ? ' is-empty' : ''}">
+      <span class="ff-l">${label}${req ? `<em class="req">${t('required')}</em>` : ''}</span>
+      ${control}
+      ${hint ? `<small class="ff-h">${hint}</small>` : ''}
+    </label>`;
+  }
+  const inp = (name, type, value, extra = '') =>
+    `<input type="${type}" name="${name}" value="${esc(value ?? '')}"${extra}>`;
+  const sel = (name, options, current) => `<select name="${name}">${options.map(([v, text]) =>
+    `<option value="${esc(v)}" ${String(v) === String(current ?? '') ? 'selected' : ''}>${esc(text)}</option>`).join('')}</select>`;
+  const area = (name, value, rows = 2) => `<textarea name="${name}" rows="${rows}">${esc(value ?? '')}</textarea>`;
+  const blank = (v) => v === null || v === undefined || String(v).trim() === '';
+
+  /** بطاقة خطوة مرقّمة في نموذج الطلب. */
+  const fs = (n, title, body, more = '') => `
+    <section class="fs">
+      <h5 class="fs-h"><span class="fs-n">${n}</span>${title}</h5>
+      <div class="fs-grid">${body}</div>
+      ${more ? `<details class="fs-more"><summary>${t('moreOpts')}</summary><div class="fs-grid">${more}</div></details>` : ''}
+    </section>`;
+
+  /**
+   * نموذج الطلب مرتّب بترتيب المكالمة مع العميل:
+   * من هو ← متى ← وين ← وش يبي ← بكم ← الحالة.
+   */
   function fillForm(r) {
     const c = cat();
     const cities = c ? Object.keys(c.CITIES).map((k) => [k, c.city(k)]) : [];
@@ -1137,83 +1170,97 @@
     const items = Array.isArray(r.items) ? r.items : [];
     const hasPin = Number.isFinite(Number(r.lat)) && Number.isFinite(Number(r.lng))
       && r.lat !== null && r.lng !== null;
+    // يوم التركيب يظهر في الخيارات الإضافية فقط إن اختلف عن يوم المناسبة
+    const setupDiff = r.setup_date && r.setup_date !== r.event_date ? r.setup_date : '';
+    const eventDayVal = r.event_date || r.setup_date || '';
 
     return `
       <div class="fill-fields">
-        <h4>${t('fillTitle')}</h4>
-        <p class="fill-hint">${t('fillHint')}</p>
+        ${fs(1, t('s1Client'), `
+          ${ff(t('fName'), inp('customer_name', 'text', r.customer_name), { req: true, empty: blank(r.customer_name) })}
+          ${ff(t('fPhone'), inp('phone', 'tel', r.phone, ' dir="ltr"'), { req: true, empty: blank(r.phone) })}
+          ${ff(t('fClientType'), sel('client_type', [['individual', t('individual')], ['company', t('company')]], r.client_type || 'individual'))}
+          ${ff(t('fCompany'), inp('company', 'text', r.company))}
+        `, `
+          ${ff(t('fVat'), inp('vat', 'text', r.vat, ' dir="ltr"'))}
+        `)}
 
-        <h5 class="fill-sec">${t('fSecLoc')}</h5>
-        <div class="fill-grid">
-          ${fSelect(t('fCity'), 'city', [['', '—'], ...cities], r.city)}
-          ${fRow(t('fDistrict'), 'district', 'text', r.district)}
-          ${fRow(t('fVenue'), 'venue', 'text', r.venue, ' wide')}
-        </div>
+        ${fs(2, t('s2When'), `
+          ${ff(t('fEventDay'), inp('event_date', 'date', eventDayVal), { req: true, empty: blank(eventDayVal) })}
+          ${ff(t('fSetupTime'), inp('setup_time', 'time', r.setup_time), { req: true, empty: blank(r.setup_time), hint: t('hSetupTime') })}
+          ${ff(t('fDays'), inp('days', 'number', r.days, ' min="1" max="30"'))}
+        `, `
+          ${ff(t('fSetupDiff'), inp('setup_date', 'date', setupDiff), { hint: t('hSetupDiff') })}
+          ${ff(t('fServiceTime'), inp('event_time', 'time', r.event_time))}
+        `)}
 
-        <div class="pin" data-pin>
-          <div class="pin-head">
-            <span>${t('fPin')}</span>
-            <span class="pin-readout" data-pin-readout>${hasPin
-              ? esc(t('fPinAt', { lat: Number(r.lat).toFixed(5), lng: Number(r.lng).toFixed(5) }))
-              : t('fPinNone')}</span>
+        ${fs(3, t('s3Where'), `
+          ${ff(t('fCity'), sel('city', [['', '—'], ...cities], r.city), { req: true, empty: blank(r.city) || r.city === 'أخرى' })}
+          ${ff(t('fDistrict'), inp('district', 'text', r.district))}
+          ${ff(t('fVenue'), inp('venue', 'text', r.venue), { wide: true })}
+          <div class="pin wide${hasPin ? '' : ' is-empty'}" data-pin>
+            <div class="pin-head">
+              <span class="ff-l">${t('fPin')}<em class="req">${t('required')}</em></span>
+              <span class="pin-readout" data-pin-readout>${hasPin
+                ? esc(t('fPinAt', { lat: Number(r.lat).toFixed(5), lng: Number(r.lng).toFixed(5) }))
+                : t('fPinNone')}</span>
+            </div>
+            <p class="ff-h">${t('fPinHint')}</p>
+            <div class="pin-map" data-pin-map></div>
+            <div class="pin-tools">
+              <input type="text" class="pin-paste" data-pin-paste placeholder="${esc(t('fPinPaste'))}">
+              <button type="button" class="btn btn-solid btn-sm" data-pin-apply>${t('fPinApply')}</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-pin-here>${t('fPinHere')}</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-pin-clear>${t('fPinClear')}</button>
+            </div>
+            <input type="hidden" name="lat" value="${esc(hasPin ? r.lat : '')}">
+            <input type="hidden" name="lng" value="${esc(hasPin ? r.lng : '')}">
           </div>
-          <p class="fill-hint">${t('fPinHint')}</p>
-          <div class="pin-map" data-pin-map></div>
-          <div class="pin-tools">
-            <input type="text" class="pin-paste" data-pin-paste placeholder="${esc(t('fPinPaste'))}">
-            <button type="button" class="btn btn-solid btn-sm" data-pin-apply>${t('fPinApply')}</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-pin-here>${t('fPinHere')}</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-pin-clear>${t('fPinClear')}</button>
+        `)}
+
+        ${fs(4, t('s4Order'), `
+          ${ff(t('fPackage'), inp('package_name', 'text', r.package_name), { wide: true })}
+          ${ff(t('fBaristas'), inp('included_baristas', 'number', r.included_baristas, ' min="0" max="20"'))}
+          ${ff(t('fBaristasF'), inp('female_baristas', 'number', femaleOf(r), ' min="0" max="20"'))}
+          ${ff(t('fCustomReq'), area('custom_request', r.custom_request), { wide: true })}
+          <div class="wide">
+            <span class="ff-l">${t('fItems')}</span>
+            <div class="items-edit" data-items>
+              ${items.filter((it) => !isFemaleItem(it)).map((it) => itemRow(it)).join('')}
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" data-item-add>${t('fItemAdd')}</button>
           </div>
-          <input type="hidden" name="lat" value="${esc(hasPin ? r.lat : '')}">
-          <input type="hidden" name="lng" value="${esc(hasPin ? r.lng : '')}">
-        </div>
+        `)}
 
-        <h5 class="fill-sec">${t('fSecWhen')}</h5>
-        <div class="fill-grid">
-          ${fRow(t('fSetupDate'), 'setup_date', 'date', r.setup_date)}
-          ${fRow(t('fSetupTime'), 'setup_time', 'time', r.setup_time)}
-          ${fRow(t('fEventDate'), 'event_date', 'date', r.event_date)}
-          ${fRow(t('fEventTime'), 'event_time', 'time', r.event_time)}
-          ${fRow(t('fDays'), 'days', 'number', r.days, ' min="1" max="30"')}
-          ${fRow(t('fBaristas'), 'included_baristas', 'number', r.included_baristas, ' min="0" max="20"')}
-          ${fRow(t('fBaristasF'), 'female_baristas', 'number', femaleOf(r), ' min="0" max="20"')}
-        </div>
+        ${fs(5, t('s5Money'), `
+          ${ff(t('fAgreed'), inp('total', 'number', r.total, ' min="0" step="0.01"'), { req: true, empty: !Number(r.total) })}
+          ${ff(t('fDeposit'), inp('deposit', 'number', r.deposit, ' min="0" step="0.01"'))}
+          ${ff(t('fDepositDate'), inp('deposit_date', 'date', r.deposit_date))}
+          ${ff(t('fRemaining'), `<input type="text" value="${esc(n2(remainingOf(r)))} ${t('sar')}" disabled>`)}
+        `, `
+          ${ff(t('fBefore'), inp('price_before', 'number', r.price_before, ' min="0" step="0.01"'), { hint: t('hBefore') })}
+          ${ff(t('fAddons'), inp('addons_total', 'number', r.addons_total, ' min="0" step="0.01"'))}
+          ${ff(t('fDesserts'), inp('desserts_total', 'number', r.desserts_total, ' min="0" step="0.01"'))}
+        `)}
 
-        <h5 class="fill-sec">${t('fSecMoney')}</h5>
-        <div class="fill-grid">
-          ${fRow(t('fBefore'), 'price_before', 'number', r.price_before, ' min="0" step="0.01"')}
-          ${fRow(t('fTotal'), 'total', 'number', r.total, ' min="0" step="0.01"')}
-          ${fRow(t('fAddons'), 'addons_total', 'number', r.addons_total, ' min="0" step="0.01"')}
-          ${fRow(t('fDesserts'), 'desserts_total', 'number', r.desserts_total, ' min="0" step="0.01"')}
-        </div>
-
-        <h5 class="fill-sec">${t('fSecPay')}</h5>
-        <div class="fill-grid">
-          ${fRow(t('fDeposit'), 'deposit', 'number', r.deposit, ' min="0" step="0.01"')}
-          ${fRow(t('fDepositDate'), 'deposit_date', 'date', r.deposit_date)}
-          <label><span>${t('fRemaining')}</span>
-            <input type="text" value="${esc(n2(remainingOf(r)))} ${t('sar')}" disabled></label>
-        </div>
-
-        <h5 class="fill-sec">${t('fSecOrder')}</h5>
-        <div class="fill-grid">
-          ${fSelect(t('fStatus'), 'status', statuses, r.status)}
-          ${fRow(t('fName'), 'customer_name', 'text', r.customer_name)}
-          ${fRow(t('fPhone'), 'phone', 'text', r.phone, ' dir="ltr"')}
-          ${fRow(t('fCompany'), 'company', 'text', r.company)}
-          ${fRow(t('fVat'), 'vat', 'text', r.vat)}
-          ${fRow(t('fPackage'), 'package_name', 'text', r.package_name, ' wide')}
-          <label class="wide"><span>${t('fCustomReq')}</span><textarea name="custom_request" rows="2">${esc(r.custom_request ?? '')}</textarea></label>
-          <label class="wide"><span>${t('fNotes')}</span><textarea name="notes" rows="2">${esc(r.notes ?? '')}</textarea></label>
-        </div>
-
-        <h5 class="fill-sec">${t('fItems')}</h5>
-        <div class="items-edit" data-items>
-          ${items.filter((it) => !isFemaleItem(it)).map((it) => itemRow(it)).join('')}
-        </div>
-        <button type="button" class="btn btn-ghost btn-sm" data-item-add>${t('fItemAdd')}</button>
+        ${fs(6, t('s6Status'), `
+          ${ff(t('fStatus'), sel('status', statuses, r.status))}
+          ${ff(t('fNotes'), area('notes', r.notes, 3), { wide: true })}
+        `)}
       </div>`;
+  }
+
+  /** يحدّث تلوين الخانات المطلوبة الفاضية أثناء الكتابة. */
+  function refreshReq(form) {
+    if (!form) return;
+    $$('label.is-req', form).forEach((label) => {
+      const el = $('input, select, textarea', label);
+      const v = el ? String(el.value || '').trim() : '';
+      const empty = !v || (el.name === 'city' && v === 'أخرى') || (el.name === 'total' && !Number(v));
+      label.classList.toggle('is-empty', empty);
+    });
+    const pin = $('[data-pin]', form);
+    if (pin) pin.classList.toggle('is-empty', !form.elements.lat?.value);
   }
 
   // ---------- دبوس الموقع ----------
@@ -1254,6 +1301,7 @@
   /** يكتب الإحداثيات في الحقول المخفية ويحرّك الدبوس والنص. */
   function setPin(box, lat, lng, { move = true } = {}) {
     const form = box.closest('form.fill');
+    setTimeout(() => refreshReq(form), 0);
     const readout = $('[data-pin-readout]', box);
     if (lat === null || lng === null) {
       form.elements.lat.value = '';
@@ -1374,7 +1422,8 @@
     }
 
     const fields = {
-      setup_date: data.get('setup_date'),
+      // يوم التركيب = يوم المناسبة ما لم يُحدَّد غيره في الخيارات الإضافية
+      setup_date: data.get('setup_date') || data.get('event_date'),
       setup_time: data.get('setup_time'),
       event_date: data.get('event_date'),
       event_time: data.get('event_time'),
@@ -1394,6 +1443,7 @@
       status: text('status'),
       customer_name: text('customer_name'),
       phone: text('phone'),
+      client_type: text('client_type') || 'individual',
       company: text('company'),
       vat: text('vat'),
       package_name: text('package_name'),
@@ -1432,6 +1482,10 @@
   /** يوم التنفيذ: التركيب إن وُجد، وإلا يوم المناسبة. */
   const eventDay = (r) => dateOnly(r.setup_date || r.event_date).replace('—', '');
   const isOpenOrder = (r) => ['new', 'contacted', 'confirmed'].includes(r.status);
+  /** السجل: ما أُنجز أو أُلغي، أو فات يومه. الباقي شغل جارٍ. */
+  const isArchived = (r) => ['done', 'cancelled'].includes(r.status)
+    || Boolean(eventDay(r) && eventDay(r) < todayIso());
+  const inMode = (r) => (listMode === 'archive' ? isArchived(r) : !isArchived(r));
   /** الطلب الجديد ناقص بطبيعته حتى نتصل؛ النقص يُحسب بعد التواصل فقط. */
   const needsCheck = (r) => ['contacted', 'confirmed'].includes(r.status);
   const hasPin = (r) => r.lat !== null && r.lat !== undefined && r.lat !== ''
@@ -1599,12 +1653,16 @@
   function renderChips() {
     const el = $('#status-chips');
     if (!el) return;
-    const count = (k) => scoped.filter((r) => r.status === k).length;
-    const missingN = scoped.filter((r) => needsCheck(r) && missingOf(r).length).length;
+    const pool = scoped.filter(inMode);
+    const count = (k) => pool.filter((r) => r.status === k).length;
+    // كل قائمة تعرض حالاتها فقط: الجارية بلا منجز/ملغي، والسجل بلا «ناقص معلومات»
+    const keys = Object.keys(STATUS_KEYS).filter((k) => count(k) > 0
+      || (listMode === 'active' ? ['new', 'contacted', 'confirmed'].includes(k) : ['done', 'cancelled'].includes(k)));
     const chips = [
-      ['', t('all'), scoped.length],
-      ...Object.keys(STATUS_KEYS).map((k) => [k, statusName(k), count(k)]),
-      ['missing', t('needsInfo'), missingN],
+      ['', t('all'), pool.length],
+      ...keys.map((k) => [k, statusName(k), count(k)]),
+      ...(listMode === 'active'
+        ? [['missing', t('needsInfo'), pool.filter((r) => needsCheck(r) && missingOf(r).length).length]] : []),
     ];
     el.innerHTML = chips.map(([k, label, n]) => `
       <button type="button" class="chip${statusFilter === k ? ' on' : ''}${k === 'missing' ? ' chip-warn' : ''}" data-chip="${k}">
@@ -1614,7 +1672,7 @@
   function renderTable() {
     renderChips();
     const rows = visibleRows();
-    $('#count').textContent = t('ofTotal', { a: rows.length, b: scoped.length });
+    $('#count').textContent = t('ofTotal', { a: rows.length, b: scoped.filter(inMode).length });
     const newCount = allOrders.filter((r) => r.status === 'new').length;
     const badge = $('#nav-new');
     if (badge) { badge.textContent = newCount || ''; badge.hidden = !newCount; }
@@ -2156,7 +2214,7 @@
 
   // ---------- التنقّل بين الصفحات ----------
   const PAGE_KEYS = {
-    overview: 'pOverview', orders: 'pOrders', analytics: 'pAnalytics',
+    overview: 'pOverview', orders: 'pOrders', archive: 'pArchive', analytics: 'pAnalytics',
     payments: 'pPayments',
     checklist: 'pChecklist', closed: 'pClosed', users: 'pUsers',
   };
@@ -2167,7 +2225,20 @@
   }
 
   function showPage(name) {
-    $$('.page').forEach((el) => el.classList.toggle('on', el.dataset.page === name));
+    // السجل يستخدم صفحة الطلبات نفسها بقائمة مختلفة
+    const section = name === 'archive' ? 'orders' : name;
+    $$('.page').forEach((el) => el.classList.toggle('on', el.dataset.page === section));
+    if (section === 'orders') {
+      const mode = name === 'archive' ? 'archive' : 'active';
+      if (pendingFilter !== null) { statusFilter = pendingFilter; pendingFilter = null; }
+      else if (mode !== listMode) statusFilter = '';
+      listMode = mode;
+      $('#new-order-btn').hidden = mode === 'archive';
+      const when = $('#filter-when')?.closest('label');
+      if (when) when.hidden = mode === 'archive';
+      $('#archive-hint').hidden = mode !== 'archive';
+      renderTable();
+    }
     $$('.nav-item').forEach((el) => el.classList.toggle('on', el.dataset.page === name));
     const title = $('#page-title');
     if (title) title.textContent = t(PAGE_KEYS[name]);
@@ -2820,7 +2891,11 @@
     });
 
     // أي تعديل داخل لوحة جانبية يُعلَّم، فلا تُغلق بلا تنبيه
-    $$('.drawer').forEach((d) => d.addEventListener('input', () => { drawerDirty = true; }));
+    $$('.drawer').forEach((d) => d.addEventListener('input', (e) => {
+      drawerDirty = true;
+      refreshReq(e.target.closest('form.fill'));
+    }));
+    $('#order-drawer').addEventListener('change', (e) => refreshReq(e.target.closest('form.fill')));
 
     document.addEventListener('click', async (e) => {
       if (e.target.closest('[data-drawer-close]')) { closeDrawer(); return; }
@@ -2855,10 +2930,10 @@
       // «عرض الكل» في الرئيسية يفتح الطلبات بالتصفية المناسبة
       const more = e.target.closest('[data-filter]');
       if (more) {
-        statusFilter = more.dataset.filter;
+        pendingFilter = more.dataset.filter;
         const when = $('#filter-when');
-        if (when) when.value = more.dataset.filter === 'missing' ? 'upcoming' : '';
-        renderTable();
+        if (when) when.value = '';
+        if (currentPage() === 'orders') showPage('orders');
       }
     });
 
