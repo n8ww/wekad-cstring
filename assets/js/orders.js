@@ -32,7 +32,13 @@
       });
 
       if (!response.ok) {
-        console.warn('[orders] فشل الحفظ:', response.status, await response.text());
+        const detail = await response.text();
+        // خانة طريقة الدفع قد لا تكون أُضيفت للقاعدة بعد: نعيد الحفظ بدونها حتى لا يضيع الطلب
+        if ('payment_method' in order && /payment_method/.test(detail)) {
+          const { payment_method: _, ...rest } = order;
+          return wekadSaveOrder(rest);
+        }
+        console.warn('[orders] فشل الحفظ:', response.status, detail);
         return false;
       }
       return true;

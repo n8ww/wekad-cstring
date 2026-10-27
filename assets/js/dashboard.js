@@ -1236,6 +1236,8 @@
           ${ff(t('fAgreed'), inp('total', 'number', r.total, ' min="0" step="0.01"'), { req: true, empty: !Number(r.total) })}
           ${ff(t('fDeposit'), inp('deposit', 'number', r.deposit, ' min="0" step="0.01"'))}
           ${ff(t('fDepositDate'), inp('deposit_date', 'date', r.deposit_date))}
+          ${'payment_method' in r ? ff(t('payMethod'), sel('payment_method',
+            [['', '—'], ...Object.entries(PAY_KEYS).map(([k, key]) => [k, t(key)])], r.payment_method)) : ''}
           ${ff(t('fRemaining'), `<input type="text" value="${esc(n2(remainingOf(r)))} ${t('sar')}" disabled>`)}
         `, `
           ${ff(t('fBefore'), inp('price_before', 'number', r.price_before, ' min="0" step="0.01"'), { hint: t('hBefore') })}
@@ -1444,6 +1446,8 @@
       customer_name: text('customer_name'),
       phone: text('phone'),
       client_type: text('client_type') || 'individual',
+      // الخانة تُرسل فقط إن كانت موجودة في القاعدة، وإلا فشل الحفظ كله
+      ...(data.has('payment_method') ? { payment_method: text('payment_method') } : {}),
       company: text('company'),
       vat: text('vat'),
       package_name: text('package_name'),
@@ -1499,6 +1503,10 @@
     const intl = d.startsWith('966') ? d : d.startsWith('0') ? `966${d.slice(1)}` : d.startsWith('5') ? `966${d}` : d;
     return `https://wa.me/${intl}`;
   }
+
+  /** طريقة الدفع التي اختارها العميل في الحجز. */
+  const PAY_KEYS = { transfer: 'pmTransfer', tabby: 'pmTabby', tamara: 'pmTamara' };
+  const payMethodName = (r) => (r.payment_method ? t(PAY_KEYS[r.payment_method] || 'pmTransfer') : '—');
 
   /** صنف الباريستا البنت (يُسجَّل كإضافة، كما يحفظه الموقع). */
   const FEMALE_ID = 'barista';
@@ -1705,7 +1713,8 @@
         <td data-label="${t('thPackage')}">${esc(packageLabel(r))}<div class="muted">${esc(r.days)} ${unitName2('يوم')}</div></td>
         <td data-label="${t('thLocation')}">${esc(cityName(r.city) || '—')}<div class="muted">${esc(r.district || '')}${maps ? ` · <a href="${maps}" target="_blank" rel="noopener">${t('openMap')}</a>` : ''}</div></td>
         <td class="tab" data-label="${t('thTotal')}"><b>${n2(r.total)}</b>${discountPill(r)}
-            <div><span class="pay-pill pay-${pay.key}">${pay.label}</span></div></td>
+            <div><span class="pay-pill pay-${pay.key}">${pay.label}</span></div>
+            ${r.payment_method && r.payment_method !== 'transfer' ? `<div class="muted">${payMethodName(r)}</div>` : ''}</td>
         <td data-label="${t('thStatus')}">
           <div class="st-cell">
             <select class="status-select" data-id="${r.id}" aria-label="${t('status')}">
@@ -1758,6 +1767,7 @@
             <div><dt>${t('thDeposit')}</dt><dd class="num">${r.deposit ? `${n2(r.deposit)} ${t('sar')}` : '—'}</dd></div>
             <div><dt>${t('thRemaining')}</dt><dd class="num">${n2(remainingOf(r))} ${t('sar')}</dd></div>
             <div><dt>${t('thBaristas')}</dt><dd>${baristaMix(r)}</dd></div>
+            ${r.payment_method ? `<div><dt>${t('payMethod')}</dt><dd>${payMethodName(r)}</dd></div>` : ''}
           </section>
           ${items.length ? `<ul class="items-list">${items.map((i) => `
             <li><span>${esc(itemName(i))} — <span class="num">${esc(i.qty)}</span> ${esc(unitName2(i.unit))}${i.total_pieces ? ` · ${n0(i.total_pieces)} ${unitName2('حبة')}` : ''}</span>
@@ -1917,6 +1927,7 @@
       { h: t('thDepositDate'), t: 'date',  w: 13, v: (r) => r.deposit_date },
       { h: t('thRemaining'),   t: 'money', w: 13, v: (r) => remainingOf(r), z: money },
       { h: t('thPayState'),    t: 'txt',   w: 14, v: (r) => payStateOf(r).label },
+      { h: t('payMethod'),     t: 'txt',   w: 13, v: (r) => (r.payment_method ? payMethodName(r) : '') },
       { h: t('fItems'),      t: 'txt',   w: 40, v: (r) => itemsOf(r)
           .map((i) => `${itemName(i)} ×${i.qty}${i.unit ? ` ${unitName2(i.unit)}` : ''}`).join(' · ') },
       { h: t('fNotes'),      t: 'txt',   w: 30, v: (r) => r.notes },

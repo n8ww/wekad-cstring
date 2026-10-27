@@ -119,7 +119,10 @@
     notes: '',
     lat: null,
     lng: null,
+    payMethod: 'transfer',
   };
+
+  const PAY_METHODS = { transfer: 'تحويل بنكي', tabby: 'تابي (٤ دفعات)', tamara: 'تمارا (تقسيط)' };
 
   const MAP_CENTER = [26.4207, 50.0888];   // الدمام / الخبر
   const MAP_ZOOM = 11;
@@ -332,6 +335,7 @@
         : []),
       ['الاسم', state.name || '—'],
       ['الجوال', state.phone || '—'],
+      ['طريقة الدفع', PAY_METHODS[state.payMethod]],
       ...(state.notes ? [['ملاحظات', state.notes]] : []),
     ];
 
@@ -726,6 +730,7 @@
     out.push(`▪︎ الاسم: ${state.name}`);
     out.push(`▪︎ الجوال: ${state.phone}`);
     out.push(`▪︎ نوع العميل: ${state.clientType === 'company' ? 'شركة' : 'أفراد'}`);
+    out.push(`▪︎ طريقة الدفع المفضلة: ${PAY_METHODS[state.payMethod]}`);
     if (state.clientType === 'company') {
       out.push(`▪︎ اسم الشركة: ${state.company}`);
       out.push(`▪︎ الرقم الضريبي: ${state.vat.trim() || 'لم يُذكر'}`);
@@ -780,6 +785,7 @@
       phone: state.phone.replace(/[\s-]/g, ''),
       company: state.clientType === 'company' ? state.company : null,
       vat: state.clientType === 'company' ? state.vat : null,
+      payment_method: state.payMethod,
       notes: state.notes,
       included_baristas: includedBaristas(),
       items: t.lines.map((l) => ({
@@ -926,6 +932,11 @@
       renderCalendar();
       track('select_date', { day: state.date });
     });
+
+    $$('input[name="pay"]').forEach((el) => el.addEventListener('change', () => {
+      state.payMethod = el.value;
+      renderReview();
+    }));
 
     $$('input[name="client"]').forEach((el) => el.addEventListener('change', () => {
       state.clientType = el.value;
