@@ -103,10 +103,10 @@
   const state = {
     step: 0,
     service: 'counter',
-    packageId: 'p100',
+    packageId: '',          // لا اختيار مسبق: الإجمالي يظهر بعد ما يختار العميل
     customCups: '',
     customRequest: '',
-    flaskId: 'f1',
+    flaskId: '',
     qty: Object.fromEntries(ITEMS.map((i) => [i.id, 0])),
     days: 1,
     date: '',
@@ -351,7 +351,7 @@
       ['الاسم', state.name || '—'],
       ['الجوال', state.phone || '—'],
       ['طريقة الدفع', PAY_METHODS[state.payMethod]],
-      ...(showPrices() ? [['الإجمالي التقديري', `${fmt(totals().grand)} ر.س — غير شامل الضريبة${isCustom() ? ' (بدون الباقة المخصصة)' : ''}`]] : []),
+      ...(showPrices() ? [['الإجمالي التقديري', `${fmt(totals().grand)} ر.س — شامل الضريبة${isCustom() ? ' (بدون الباقة المخصصة)' : ''}`]] : []),
       ...(state.notes ? [['ملاحظات', state.notes]] : []),
     ];
 
@@ -410,13 +410,18 @@
       label.textContent = 'سنتواصل معك لتأكيد التفاصيل وعرض السعر';
       return;
     }
+    if (!chosenBase()) {
+      value.hidden = true;
+      label.textContent = 'اختر الباقة ويظهر لك الإجمالي';
+      return;
+    }
     const t = totals();
     value.hidden = false;
     // الباقة المخصصة بلا سعر ثابت: نعرض الإضافات فقط ونوضّح أن الباقي بعد المراجعة
     value.innerHTML = priceTag(t.grand);
     label.textContent = isCustom()
-      ? 'الإضافات فقط — سعر الباقة المخصصة بعد المراجعة · غير شامل الضريبة'
-      : 'الإجمالي التقديري · غير شامل الضريبة';
+      ? 'الإضافات فقط — سعر الباقة المخصصة بعد المراجعة · شامل الضريبة'
+      : 'الإجمالي التقديري · شامل الضريبة';
   }
 
   // ---------- calendar ----------
@@ -532,6 +537,10 @@
   }
 
   function validate() {
+    if (PANES[state.step] === 'service') {
+      if (state.service === 'counter' && !state.packageId) return 'اختر الباقة (عدد الأكواب).';
+      if (state.service === 'flask' && !state.flaskId) return 'اختر عدد الحافظات.';
+    }
     if (PANES[state.step] === 'service' && isCustom()) {
       const cups = Number(state.customCups);
       if (!cups || cups < 50) return 'أقل باقة مخصصة ٥٠ كوباً — اكتب عدداً من ٥٠ فأكثر.';
@@ -763,7 +772,7 @@
     out.push(`▪︎ نوع العميل: ${state.clientType === 'company' ? 'شركة' : 'أفراد'}`);
     out.push(`▪︎ طريقة الدفع المفضلة: ${PAY_METHODS[state.payMethod]}`);
     if (showPrices()) {
-      out.push(`▪︎ الإجمالي التقديري الظاهر للعميل: ${fmt(totals().grand)} ر.س (غير شامل الضريبة)${isCustom() ? ' — بدون الباقة المخصصة' : ''}`);
+      out.push(`▪︎ الإجمالي التقديري الظاهر للعميل: ${fmt(totals().grand)} ر.س (شامل الضريبة)${isCustom() ? ' — بدون الباقة المخصصة' : ''}`);
     }
     if (state.clientType === 'company') {
       out.push(`▪︎ اسم الشركة: ${state.company}`);
