@@ -39,7 +39,7 @@
 
     // ---- مجموعات الحلى ----
     tart: { ar: 'التارت',              en: 'Tarts',             tl: 'Mga Tart' },
-    cake: { ar: 'الكيك الطبيعي الكبير', en: 'Large Fresh Cakes', tl: 'Malalaking Sariwang Cake' },
+    cake: { ar: 'وِكاد كيك', en: 'Wekad Cake', tl: 'Wekad Cake' },
 
     // ---- الباقة المخصصة ----
     custom: { ar: 'باقة مخصصة', en: 'Custom package', tl: 'Pasadyang pakete' },

@@ -63,8 +63,8 @@
     },
     {
       id: 'cake',
-      ar: 'الكيك الطبيعي الكبير',
-      en: 'Large Fresh Cakes',
+      ar: 'وِكاد كيك',
+      en: 'Wekad Cake',
       note: 'يُطلب بالحبة',
       unitAr: 'كيكة',
       max: 100,
