@@ -211,6 +211,17 @@
     return { base, baseTotal, lines, linesTotal, grand: round2(baseTotal + linesTotal) };
   }
 
+  // ---------- إظهار الأسعار ----------
+  // الأسعار تظهر للأفراد فقط؛ الشركات يصلها عرض سعر بعد التواصل
+  const showPrices = () => state.clientType === 'individual';
+  const SAR = '<img class="sar" src="assets/img/sar-sand.svg" alt="ر.س">';
+  const priceTag = (n) => `<span class="num">${fmt(n)}</span>${SAR}`;
+
+  function syncPriceMode() {
+    document.body.classList.toggle('show-prices', showPrices());
+    renderTotal();
+  }
+
   // ---------- quantity rows ----------
   function qtyRow(item) {
     return `
@@ -218,6 +229,7 @@
         <div class="qrow-main">
           <span class="qrow-name">${item.ar}<span class="en">${item.en}</span>
             ${item.pieces ? `<span class="qrow-per-unit" data-pieces="${item.pieces}" hidden></span>` : ''}</span>
+          <span class="qrow-price price-only">${priceTag(item.price)} / ${item.unitAr}${item.per === 'day' ? ' / يوم' : ''}</span>
         </div>
         <div class="stepper stepper--sm">
           <button type="button" data-q="-" aria-label="إنقاص ${item.ar}">−</button>
@@ -262,6 +274,7 @@
         <span class="opt-check"></span>
         <span class="opt-big num">${p.cups}</span>
         <span class="opt-meta">كوب / cups</span>
+        <span class="opt-price price-only">${priceTag(p.price)}</span>
       </label>`).join('') + `
       <label class="opt opt--custom">
         <input type="radio" name="pkg" value="custom" ${state.packageId === 'custom' ? 'checked' : ''}>
@@ -269,6 +282,7 @@
         <span class="opt-big">✎</span>
         <span class="opt-name">باقة مخصصة<span class="en">Custom package</span></span>
         <span class="opt-meta">نفصّلها على مقاسك</span>
+        <span class="opt-price price-only">السعر بعد المراجعة</span>
       </label>`;
 
     $('#opt-flasks').innerHTML = FLASKS.map((f) => `
@@ -278,6 +292,7 @@
         <span class="opt-big num">${f.count}</span>
         <span class="opt-name">${f.ar}<span class="en">${f.en}</span></span>
         <span class="opt-meta">${f.cupsFrom}–${f.cupsTo} كوب</span>
+        <span class="opt-price price-only">${priceTag(f.price)}</span>
 
       </label>`).join('');
 
@@ -336,6 +351,7 @@
       ['الاسم', state.name || '—'],
       ['الجوال', state.phone || '—'],
       ['طريقة الدفع', PAY_METHODS[state.payMethod]],
+      ...(showPrices() ? [['الإجمالي التقديري', `${fmt(totals().grand)} ر.س — غير شامل الضريبة${isCustom() ? ' (بدون الباقة المخصصة)' : ''}`]] : []),
       ...(state.notes ? [['ملاحظات', state.notes]] : []),
     ];
 
@@ -386,6 +402,21 @@
   function renderTotal() {
     refreshQtyTotals();
     renderIncluded();
+    const value = $('#total-value');
+    const label = $('#total-label');
+    if (!value || !label) return;
+    if (!showPrices()) {
+      value.hidden = true;
+      label.textContent = 'سنتواصل معك لتأكيد التفاصيل وعرض السعر';
+      return;
+    }
+    const t = totals();
+    value.hidden = false;
+    // الباقة المخصصة بلا سعر ثابت: نعرض الإضافات فقط ونوضّح أن الباقي بعد المراجعة
+    value.innerHTML = priceTag(t.grand);
+    label.textContent = isCustom()
+      ? 'الإضافات فقط — سعر الباقة المخصصة بعد المراجعة · غير شامل الضريبة'
+      : 'الإجمالي التقديري · غير شامل الضريبة';
   }
 
   // ---------- calendar ----------
@@ -731,6 +762,9 @@
     out.push(`▪︎ الجوال: ${state.phone}`);
     out.push(`▪︎ نوع العميل: ${state.clientType === 'company' ? 'شركة' : 'أفراد'}`);
     out.push(`▪︎ طريقة الدفع المفضلة: ${PAY_METHODS[state.payMethod]}`);
+    if (showPrices()) {
+      out.push(`▪︎ الإجمالي التقديري الظاهر للعميل: ${fmt(totals().grand)} ر.س (غير شامل الضريبة)${isCustom() ? ' — بدون الباقة المخصصة' : ''}`);
+    }
     if (state.clientType === 'company') {
       out.push(`▪︎ اسم الشركة: ${state.company}`);
       out.push(`▪︎ الرقم الضريبي: ${state.vat.trim() || 'لم يُذكر'}`);
@@ -940,6 +974,7 @@
 
     $$('input[name="client"]').forEach((el) => el.addEventListener('change', () => {
       state.clientType = el.value;
+      syncPriceMode();
       $('#company-fields').hidden = el.value !== 'company';
     }));
 
@@ -1009,6 +1044,7 @@
     wire();
     chrome();
     syncSizePane();
+    syncPriceMode();
     goto(0, false);
     $('#year').textContent = new Date().getFullYear();
   });

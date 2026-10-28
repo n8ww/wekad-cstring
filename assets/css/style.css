@@ -1343,3 +1343,20 @@ html[dir='ltr'] .hero-rule { transform-origin: left center; }
 .pay-pick .opt-name img { height: 22px; width: auto; display: block; }
 .pay-pick .opt-name .en { text-transform: none; letter-spacing: 0; font-family: inherit; font-size: 0.76rem; }
 .pay-pick-note { font-size: 0.8rem; color: rgba(237, 230, 218, 0.5); margin-block-start: 0.7rem; }
+
+/* ---------- الأسعار: ظاهرة للأفراد فقط ---------- */
+.price-only { display: none !important; }
+.show-prices .price-only { display: block !important; }
+.show-prices .qrow-price.price-only { display: inline-flex !important; }
+.opt-price {
+  margin-block-start: 0.55rem;
+  font-size: 0.95rem;
+  color: var(--sand);
+  font-weight: 500;
+}
+.opt-price .sar, .qrow-price .sar, .total-bar .value .sar { width: 0.85em; height: 0.85em; vertical-align: -0.08em; margin-inline-start: 0.2rem; }
+.qrow-price { align-items: center; gap: 0.15rem; font-size: 0.78rem; color: rgba(222, 196, 158, 0.85); margin-block-start: 0.2rem; }
+.total-bar .value[hidden] { display: none; }
+.show-prices .opt-price.price-only { display: inline-flex !important; align-items: center; gap: 0.25rem; direction: rtl; }
+.opt-price .sar, .qrow-price .sar, .total-bar .value .sar { display: inline-block; flex: none; }
+.show-prices .total-bar .value:not([hidden]) { display: inline-flex; align-items: center; gap: 0.3rem; }
