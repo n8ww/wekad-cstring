@@ -805,21 +805,21 @@
 
   /** المدى السابق بنفس الطول، للمقارنة. */
   function previousWindow(days) {
+    // نفس طول الفترة قبلها مباشرة، بتاريخ المناسبة
+    let start;
+    let end;
     if (customRange) {
       const b = customBounds();
-      const start = new Date(b.from); start.setDate(start.getDate() - b.days);
-      return allOrders.filter((r) => {
-        const d = new Date(r.created_at);
-        return d >= start && d < b.from;
-      });
+      end = new Date(b.from);
+      start = new Date(b.from); start.setDate(start.getDate() - b.days);
+    } else {
+      if (!days) return [];
+      end = startOfDay(new Date()); end.setDate(end.getDate() - (days - 1));
+      start = new Date(end); start.setDate(start.getDate() - days);
     }
-    if (!days) return [];
-    const end = new Date(); end.setDate(end.getDate() - days);
-    const start = new Date(end); start.setDate(start.getDate() - days);
-    return allOrders.filter((r) => {
-      const d = new Date(r.created_at);
-      return d >= start && d < end;
-    });
+    const a = ymdLocal(start);
+    const z = ymdLocal(end);
+    return allOrders.filter((r) => { const d = eventDay(r); return d && d >= a && d < z; });
   }
 
   function tally(rows, pick, limit = 7) {
@@ -849,7 +849,7 @@
   function byMonth(rows) {
     const map = new Map();
     rows.forEach((row) => {
-      const d = new Date(row.created_at);
+      const d = eventDay(row) ? new Date(`${eventDay(row)}T12:00:00`) : new Date(row.created_at);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const cur = map.get(key) || { count: 0, revenue: 0 };
       cur.count += 1;
@@ -1479,6 +1479,7 @@
   }
 
   // ---------- مساعدات العرض ----------
+  const ymdLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const todayIso = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -1489,7 +1490,9 @@
   /** السجل: ما أُنجز أو أُلغي، أو فات يومه. الباقي شغل جارٍ. */
   const isArchived = (r) => ['done', 'cancelled'].includes(r.status)
     || Boolean(eventDay(r) && eventDay(r) < todayIso());
-  const inMode = (r) => (listMode === 'archive' ? isArchived(r) : !isArchived(r));
+  // مع تحديد فترة تظهر كل طلباتها في «الطلبات»، حتى السابقة والمنتهية
+  const rangeActive = () => Boolean(customRange || rangeDays);
+  const inMode = (r) => (listMode === 'archive' ? isArchived(r) : (rangeActive() || !isArchived(r)));
   /** الطلب الجديد ناقص بطبيعته حتى نتصل؛ النقص يُحسب بعد التواصل فقط. */
   const needsCheck = (r) => ['contacted', 'confirmed'].includes(r.status);
   const hasPin = (r) => r.lat !== null && r.lat !== undefined && r.lat !== ''
@@ -1864,6 +1867,133 @@
       }).join('');
   }
 
+  // ---------- تقرير الفترة ----------
+  // كل طلبات فترة محددة — سابقة وقادمة وبكل حالاتها — مع مبالغها
+  const repState = { from: '', to: '', basis: 'event' };
+  const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+  const ymKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const monthName = (key) => {
+    const [y, m] = key.split('-').map(Number);
+    return window.WekadI18n.lang === 'ar' ? `${MONTHS_AR[m - 1]} ${y}`
+      : new Intl.DateTimeFormat(locale(), { month: 'long', year: 'numeric' }).format(new Date(y, m - 1, 15));
+  };
+  const monthBounds = (key) => {
+    const [y, m] = key.split('-').map(Number);
+    const last = new Date(y, m, 0).getDate();
+    return { from: `${key}-01`, to: `${key}-${String(last).padStart(2, '0')}` };
+  };
+  /** تاريخ الطلب في التقرير: يوم المناسبة أو يوم استلامه. */
+  const repDay = (r) => eventDay(r);
+
+  function fillReportMonths() {
+    const sel = $('#rep-month');
+    if (!sel) return;
+    // من أقدم شهر فيه طلبات إلى ثلاثة أشهر قادمة
+    const keys = new Set();
+    allOrders.forEach((r) => {
+      const d = eventDay(r) ? new Date(`${eventDay(r)}T12:00:00`) : null;
+      if (d && !Number.isNaN(d.getTime())) keys.add(ymKey(d));
+    });
+    const now = new Date();
+    for (let i = -1; i <= 3; i += 1) keys.add(ymKey(new Date(now.getFullYear(), now.getMonth() + i, 15)));
+    const list = [...keys].sort().reverse();
+    const current = repState.from && repState.to && monthBounds(repState.from.slice(0, 7)).to === repState.to
+      && repState.from.endsWith('-01') ? repState.from.slice(0, 7) : '';
+    sel.innerHTML = `<option value="">${t('repCustom')}</option>`
+      + list.map((k) => `<option value="${k}" ${k === current ? 'selected' : ''}>${esc(monthName(k))}</option>`).join('');
+  }
+
+  function reportRows() {
+    return allOrders
+      .filter((r) => { const d = repDay(r); return d && d >= repState.from && d <= repState.to; })
+      .sort((a, b) => (repDay(a) + (a.setup_time || '')).localeCompare(repDay(b) + (b.setup_time || '')));
+  }
+
+  function renderReport() {
+    if (!$('#rep-body')) return;
+    if (!repState.from) {
+      const b = monthBounds(ymKey(new Date()));
+      repState.from = b.from; repState.to = b.to;
+    }
+    $('#rep-from').value = repState.from;
+    $('#rep-to').value = repState.to;
+    fillReportMonths();
+
+    const rows = reportRows();
+    const live = rows.filter((r) => r.status !== 'cancelled');
+    const cancelled = rows.length - live.length;
+    const sum = (list, f) => list.reduce((acc, r) => acc + f(r), 0);
+    const amount = sum(live, (r) => Number(r.total) || 0);
+    const paid = sum(live, (r) => Number(r.deposit) || 0);
+    const left = sum(live, (r) => remainingOf(r));
+    const today = todayIso();
+    const upcoming = live.filter((r) => eventDay(r) && eventDay(r) >= today).length;
+
+    const month = $('#rep-month').value;
+    $('#rep-title').innerHTML = `${esc(month ? monthName(month) : `${repState.from} — ${repState.to}`)}
+      <span>· ${t('basisEvent')}</span>`;
+
+    $('#rep-kpis').innerHTML = [
+      kpi(t('repOrders'), n0(live.length), '', t('sUpNPast', { u: n0(upcoming), p: n0(live.length - upcoming) }), true),
+      kpi(t('repAmount'), n2(amount), t('sar'), t('sExclCancelled')),
+      kpi(t('repPaid'), n2(paid), t('sar'), amount ? `${Math.round((paid / amount) * 100)}%` : ''),
+      kpi(t('repLeft'), n2(left), t('sar'), ''),
+      kpi(t('repCancelled'), n0(cancelled), '', ''),
+    ].join('');
+
+    // توزيع الحالات: عدد ومبلغ لكل حالة
+    $('#rep-status').innerHTML = Object.keys(STATUS_KEYS)
+      .map((k) => {
+        const list = rows.filter((r) => r.status === k);
+        if (!list.length) return '';
+        return `<span class="rep-chip">${statusPill(k)}<b class="num">${list.length}</b>
+          <span class="num muted">${n0(sum(list, (r) => Number(r.total) || 0))} ${t('sar')}</span></span>`;
+      }).join('');
+
+    $('#rep-body').innerHTML = !rows.length
+      ? `<tr><td colspan="9"><p class="empty">${t('repEmpty')}</p></td></tr>`
+      : rows.map((r) => {
+        const day = eventDay(r);
+        const off = r.status === 'cancelled';
+        return `<tr class="row-main${off ? ' is-cancelled' : ''}" data-open="${r.id}" tabindex="0">
+          <td data-label="${t('thWhen')}"><b class="tab">${esc(repDay(r))}</b>
+            ${day ? `<div><span class="mini-day u-${urgencyOf(day)}">${relDay(day)}</span></div>` : ''}</td>
+          <td data-label="${t('thRef')}"><span class="ref">${esc(r.ref)}</span></td>
+          <td data-label="${t('thCustomer')}">${esc(r.customer_name || '—')}</td>
+          <td data-label="${t('thPackage')}">${esc(packageLabel(r))}</td>
+          <td data-label="${t('city')}">${esc(cityName(r.city) || '—')}</td>
+          <td data-label="${t('thStatus')}">${statusPill(r.status)}</td>
+          <td data-label="${t('thTotal')}" class="num">${n2(r.total)}</td>
+          <td data-label="${t('thDeposit')}" class="num">${r.deposit ? n2(r.deposit) : '—'}</td>
+          <td data-label="${t('thRemaining')}" class="num">${off ? '—' : n2(remainingOf(r))}</td>
+        </tr>`;
+      }).join('');
+
+    $('#rep-foot').innerHTML = rows.length ? `<tr>
+        <td colspan="6"><b>${t('repTotal')}</b> <span class="muted">${t('sExclCancelled')}</span></td>
+        <td class="num"><b>${n2(amount)}</b></td>
+        <td class="num"><b>${n2(paid)}</b></td>
+        <td class="num"><b>${n2(left)}</b></td>
+      </tr>` : '';
+  }
+
+  function exportReport() {
+    const money = '#,##0.00';
+    const cols = [
+      { h: t('thWhen'),        t: 'date',  w: 12, v: (r) => repDay(r) },
+      { h: t('thRef'),         t: 'txt',   w: 12, v: (r) => r.ref },
+      { h: t('thCustomer'),    t: 'txt',   w: 22, v: (r) => r.customer_name },
+      { h: t('fPhone'),        t: 'txt',   w: 14, v: (r) => r.phone },
+      { h: t('thPackage'),     t: 'txt',   w: 18, v: (r) => packageLabel(r) },
+      { h: t('city'),          t: 'txt',   w: 11, v: (r) => cityName(r.city) },
+      { h: t('status'),        t: 'txt',   w: 10, v: (r) => statusName(r.status) },
+      { h: t('thTotal'),       t: 'money', w: 14, v: (r) => r.total, z: money },
+      { h: t('thDeposit'),     t: 'money', w: 14, v: (r) => r.deposit, z: money },
+      { h: t('thRemaining'),   t: 'money', w: 14, v: (r) => (r.status === 'cancelled' ? null : remainingOf(r)), z: money },
+    ];
+    writeSheet(reportRows(), cols, `wekad-report-${repState.from}_${repState.to}`, t('pReport'));
+  }
+
   /** تقرير المدفوعات كملف إكسل مستقل. */
   function exportPayments() {
     const rows = payRows();
@@ -2021,19 +2151,24 @@
   }
 
   // ---------- المدى الزمني ----------
+  /**
+   * المدى الزمني يعتمد تاريخ المناسبة لا تاريخ الطلب.
+   * «من – إلى»: المناسبات داخل الفترة. ٧/٣٠/٩٠: من قبل كذا يوم وكل القادم.
+   * الزوار ليس لهم تاريخ مناسبة، فيُصفَّون بوقت الزيارة على نفس الحدود.
+   */
   function applyRange() {
     if (customRange) {
       const { from, to } = customBounds();
-      const inside = (x) => { const d = new Date(x.created_at); return d >= from && d <= to; };
-      scoped = allOrders.filter(inside);
-      scopedVisits = allVisits.filter(inside);
+      scoped = allOrders.filter((r) => { const d = eventDay(r); return d && d >= customRange.from && d <= customRange.to; });
+      scopedVisits = allVisits.filter((x) => { const d = new Date(x.created_at); return d >= from && d <= to; });
     } else if (!rangeDays) {
       scoped = allOrders.slice();
       scopedVisits = allVisits.slice();
     } else {
       const from = startOfDay(new Date());
       from.setDate(from.getDate() - (rangeDays - 1));
-      scoped = allOrders.filter((r) => new Date(r.created_at) >= from);
+      const fromIso = ymdLocal(from);
+      scoped = allOrders.filter((r) => { const d = eventDay(r); return d && d >= fromIso; });
       scopedVisits = allVisits.filter((v) => new Date(v.created_at) >= from);
     }
     renderKpis();
@@ -2225,7 +2360,7 @@
 
   // ---------- التنقّل بين الصفحات ----------
   const PAGE_KEYS = {
-    overview: 'pOverview', orders: 'pOrders', archive: 'pArchive', analytics: 'pAnalytics',
+    overview: 'pOverview', orders: 'pOrders', archive: 'pArchive', report: 'pReport', analytics: 'pAnalytics',
     payments: 'pPayments',
     checklist: 'pChecklist', closed: 'pClosed', users: 'pUsers',
   };
@@ -2256,8 +2391,9 @@
     $('#side')?.classList.remove('open');
     // المدى الزمني لا معنى له في صفحات الإعدادات، فلا نعرضه هناك
     const range = $('#range-wrap');
-    if (range) range.hidden = ['checklist', 'closed', 'users'].includes(name);
+    if (range) range.hidden = ['checklist', 'closed', 'users', 'report'].includes(name);
     if (name === 'payments') renderPayments();
+    if (name === 'report') renderReport();
     if (name === 'users') renderStaff();
     if (name === 'closed') renderBlocked();
     if (name === 'checklist') renderItems();
@@ -2500,6 +2636,22 @@
       rangeDays = Number(b.dataset.days);
       applyRange();
     }));
+
+    // تقرير الفترة
+    $('#rep-month')?.addEventListener('change', (e) => {
+      if (!e.target.value) return;
+      Object.assign(repState, monthBounds(e.target.value));
+      renderReport();
+    });
+    ['#rep-from', '#rep-to'].forEach((sel) => $(sel)?.addEventListener('change', () => {
+      let from = $('#rep-from').value;
+      let to = $('#rep-to').value;
+      if (!from || !to) return;
+      if (to < from) [from, to] = [to, from];
+      Object.assign(repState, { from, to });
+      renderReport();
+    }));
+    $('#rep-export')?.addEventListener('click', exportReport);
 
     $('#range-apply')?.addEventListener('click', () => {
       let from = $('#range-from').value;

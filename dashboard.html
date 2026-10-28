@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="assets/css/dashboard.css?v=202610281117">
+<link rel="stylesheet" href="assets/css/dashboard.css?v=202610281530">
 </head>
 <body>
 
@@ -66,6 +66,7 @@
         <a href="#/archive"   class="nav-item" data-page="archive"><span class="ic">⧖</span><span data-i18n="pArchive">السجل</span></a>
         <a href="#/payments"  class="nav-item" data-page="payments"><span class="ic">◈</span><span data-i18n="pPayments">المدفوعات</span></a>
         <span class="nav-group" data-i18n="gReports">التقارير</span>
+        <a href="#/report"    class="nav-item" data-page="report"><span class="ic">▦</span><span data-i18n="pReport">تقرير الفترة</span></a>
         <a href="#/analytics" class="nav-item" data-page="analytics"><span class="ic">◔</span><span data-i18n="pAnalytics">التحليلات</span></a>
         <span class="nav-group" data-i18n="gSettings">الإعدادات</span>
         <a href="#/checklist" class="nav-item" data-page="checklist"><span class="ic">☑</span><span data-i18n="pChecklist">قائمة التجهيز</span></a>
@@ -85,7 +86,7 @@
         <h1 id="page-title">الرئيسية</h1>
         <div class="topbar-tools">
           <div class="range-wrap" id="range-wrap">
-          <span class="range-label" data-i18n="rangeLabel">الطلبات المستلمة خلال</span>
+          <span class="range-label" data-i18n="rangeLabel">المناسبات</span>
           <div class="ranges" role="group" aria-label="المدى الزمني" data-i18n-aria="aRange">
             <button class="range-btn" data-days="7" data-i18n="d7">٧ أيام</button>
             <button class="range-btn" data-days="30" data-i18n="d30">٣٠ يوم</button>
@@ -236,6 +237,47 @@
             </table>
           </div>
         </section>
+      </section>
+
+      <!-- ===== تقرير الفترة ===== -->
+      <section class="page" data-page="report">
+        <div class="rep-controls">
+          <label class="f">
+            <span data-i18n="repMonth">الشهر</span>
+            <select id="rep-month"></select>
+          </label>
+          <label class="f">
+            <span data-i18n="from">من تاريخ</span>
+            <input type="date" id="rep-from">
+          </label>
+          <label class="f">
+            <span data-i18n="toDate">إلى تاريخ</span>
+            <input type="date" id="rep-to">
+          </label>
+          <button type="button" class="btn btn-ghost" id="rep-export" data-i18n="repExport">تصدير التقرير</button>
+        </div>
+        <p class="rep-title" id="rep-title"></p>
+        <div class="kpis" id="rep-kpis"></div>
+        <div class="rep-status" id="rep-status"></div>
+        <div class="table-wrap">
+          <table id="rep-table">
+            <thead>
+              <tr>
+                <th data-i18n="thWhen">الموعد</th>
+                <th data-i18n="thRef">رقم الطلب</th>
+                <th data-i18n="thCustomer">العميل</th>
+                <th data-i18n="thPackage">الباقة</th>
+                <th data-i18n="city">المدينة</th>
+                <th data-i18n="thStatus">الحالة</th>
+                <th data-i18n="thTotal">الإجمالي</th>
+                <th data-i18n="thDeposit">العربون</th>
+                <th data-i18n="thRemaining">المتبقي</th>
+              </tr>
+            </thead>
+            <tbody id="rep-body"></tbody>
+            <tfoot id="rep-foot"></tfoot>
+          </table>
+        </div>
       </section>
 
       <section class="page" data-page="analytics">
@@ -501,9 +543,9 @@
 
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="assets/js/dash-i18n.js?v=202610281117"></script>
-<script src="assets/js/catalog.js?v=202610281117"></script>
-<script src="assets/js/config.js?v=202610281117"></script>
-<script src="assets/js/dashboard.js?v=202610281117"></script>
+<script src="assets/js/dash-i18n.js?v=202610281530"></script>
+<script src="assets/js/catalog.js?v=202610281530"></script>
+<script src="assets/js/config.js?v=202610281530"></script>
+<script src="assets/js/dashboard.js?v=202610281530"></script>
 </body>
 </html>
